@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, EyeOff, Eye, MapPin, ChevronDown } from 'lucide-react';
+import { Mail, Lock, EyeOff, Eye, MapPin, ChevronDown, ArrowLeft } from 'lucide-react';
 import { auth, googleProvider, facebookProvider } from './lib/firebase';
 import {
   signInWithEmailAndPassword,
@@ -7,6 +7,7 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   User
 } from 'firebase/auth';
 
@@ -23,6 +24,12 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -80,6 +87,25 @@ export default function App() {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email to reset password.');
+      return;
+    }
+    setError('');
+    setResetMessage('');
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetMessage('Password reset email sent. Please check your inbox.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to send password reset email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (loadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -120,35 +146,104 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-white font-sans text-gray-900">
-      {/* Left Column (Image) - Hidden on mobile, visible on lg screens */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gray-100 overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[100dvh] w-full bg-white font-sans text-gray-900 relative overflow-hidden lg:static lg:h-auto lg:min-h-screen">
+      {/* Background Image Container */}
+      <div className="absolute inset-0 z-0 w-full h-[100dvh] lg:relative lg:flex lg:w-1/2 bg-gray-100 overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1920&auto=format&fit=crop"
           alt="Fashion Model"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover lg:object-center object-top"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-x-0 bottom-0 p-12 bg-gradient-to-t from-gray-50/20 to-transparent">
-          <h1 className="text-black text-7xl font-black uppercase tracking-[0.25em] drop-shadow-md pb-4 pl-4 mix-blend-overlay opacity-90">
+        {/* Adjusted padding on mobile so SHEIN isn't completely hidden by the 50% bottom sheet */}
+        <div className="absolute inset-x-0 bottom-[45vh] lg:bottom-0 p-8 lg:p-12 bg-gradient-to-t from-black/50 via-transparent to-transparent lg:from-gray-50/20 pointer-events-none transition-all duration-500 flex justify-center lg:justify-start">
+          <h1 className="text-white lg:text-black text-[11vw] sm:text-[8vw] lg:text-7xl font-black uppercase tracking-[0.2em] lg:tracking-[0.25em] drop-shadow-md pb-4 mix-blend-overlay opacity-90 text-center lg:text-left whitespace-nowrap">
             S H E I N
           </h1>
         </div>
       </div>
 
-      {/* Right Column (Form) */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 lg:p-24 overflow-y-auto w-full">
-        <div className="w-full max-w-md mx-auto flex flex-col">
-          {/* Logo */}
-          <div className="flex justify-center mb-10">
+      {/* Right Column (Form) / Mobile Slide-up Modal */}
+      <div 
+        className={`absolute lg:relative z-10 bottom-0 w-full lg:w-1/2 bg-white rounded-t-[2.5rem] lg:rounded-none flex flex-col items-center justify-start lg:justify-center p-6 pt-2 sm:p-12 lg:p-24 overflow-y-auto shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.3)] lg:shadow-none transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] flex-1 ${
+          isExpanded ? 'h-[100dvh] rounded-t-none pb-24' : 'h-[55dvh]'
+        } lg:h-auto lg:min-h-screen`}
+      >
+        {/* Mobile handle */}
+        <div className="w-full flex justify-center py-4 lg:hidden cursor-pointer shrink-0" onClick={() => setIsExpanded(!isExpanded)}>
+          <div className="w-14 h-1.5 bg-gray-300 rounded-full"></div>
+        </div>
+
+        <div className="w-full max-w-md mx-auto flex flex-col h-full lg:h-auto mt-2 lg:mt-0" onFocus={() => setIsExpanded(true)}>
+          {/* Logo - Hidden on mobile because it's prominent on the background image */}
+          <div className="hidden lg:flex justify-center mb-10">
             <h2 className="text-4xl font-black uppercase tracking-[0.25em]">
               S H E I N
             </h2>
           </div>
 
           <div className="w-full">
-            {/* Auth Form */}
-            <form onSubmit={handleEmailAuth} className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {showForgotPassword ? (
+              <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="mb-6 flex flex-col space-y-2">
+                  <button 
+                    type="button" 
+                    onClick={() => { setShowForgotPassword(false); setResetMessage(''); setError(''); }}
+                    className="flex items-center text-sm font-semibold text-gray-500 hover:text-black hover:underline underline-offset-2 transition-colors w-fit mb-4"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-1.5" />
+                    Back to Sign In
+                  </button>
+                  <h3 className="text-2xl font-bold tracking-tight text-gray-900">Reset Password</h3>
+                  <p className="text-sm text-gray-500">Enter your email address and we'll send you a link to reset your password.</p>
+                </div>
+
+                <form onSubmit={handlePasswordReset} className="space-y-5">
+                  {error && (
+                    <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium">
+                      {error}
+                    </div>
+                  )}
+                  {resetMessage && (
+                    <div className="p-3 bg-green-50 text-green-700 border border-green-100 rounded-xl text-sm font-medium">
+                      {resetMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-800">Email Address</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="block w-full pl-11 pr-3 py-3 border border-transparent rounded-xl bg-gray-100 text-gray-900 placeholder:text-gray-400 hover:bg-gray-200/50 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-colors sm:text-sm"
+                        placeholder="Enter your email"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl text-[15px] font-bold text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4"
+                  >
+                    {resetLoading ? (
+                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                       'Send Reset Link'
+                    )}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <>
+                {/* Auth Form */}
+                <form onSubmit={handleEmailAuth} className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
               
               {error && (
                 <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium">
@@ -237,9 +332,9 @@ export default function App() {
                     </label>
                   </div>
                   <div className="text-sm">
-                    <a href="#" className="font-bold text-black hover:underline underline-offset-2">
+                    <button type="button" onClick={() => { setShowForgotPassword(true); setError(''); setResetMessage(''); }} className="font-bold text-black hover:underline underline-offset-2 focus:outline-none">
                       Forgot password?
-                    </a>
+                    </button>
                   </div>
                 </div>
               )}
@@ -286,8 +381,9 @@ export default function App() {
                 {/* Facebook Sign In Button */}
                 <button
                   type="button"
-                  onClick={loginWithFacebook}
-                  className="w-full flex justify-center items-center py-3 px-4 border border-gray-200 shadow-sm rounded-xl bg-white hover:bg-gray-50 hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1"
+                  disabled
+                  title="Currently disabled"
+                  className="w-full flex justify-center items-center py-3 px-4 border border-gray-200 shadow-sm rounded-xl bg-gray-50 opacity-50 cursor-not-allowed transition-colors focus:outline-none"
                 >
                   <span className="sr-only">Sign in with Facebook</span>
                   <svg className="h-[24px] w-[24px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -298,7 +394,9 @@ export default function App() {
                 {/* Apple Sign In Button */}
                 <button
                   type="button"
-                  className="w-full flex justify-center items-center py-3 px-4 border border-gray-200 shadow-sm rounded-xl bg-white hover:bg-gray-50 hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1"
+                  disabled
+                  title="Currently disabled"
+                  className="w-full flex justify-center items-center py-3 px-4 border border-gray-200 shadow-sm rounded-xl bg-gray-50 opacity-50 cursor-not-allowed transition-colors focus:outline-none"
                 >
                   <span className="sr-only">Sign in with Apple</span>
                   <svg className="h-[22px] w-[22px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -325,6 +423,8 @@ export default function App() {
                 </p>
                )}
             </div>
+            </>
+            )}
 
             <div className="mt-12 flex justify-center">
               <button type="button" className="flex items-center text-[13px] font-medium text-gray-700 bg-gray-100/80 hover:bg-gray-200 py-1.5 px-3.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300">
