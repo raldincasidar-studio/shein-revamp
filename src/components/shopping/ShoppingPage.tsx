@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 import ProductCard from './ProductCard';
-import { getProducts } from '../../services/productService';
+import { getProductsByCategories } from '../../services/productService';
 
 export interface Product {
   id: string;
@@ -38,6 +38,7 @@ interface ShoppingPageProps {
 
 export default function ShoppingPage({ category, searchQuery, setCategory, onProductClick }: ShoppingPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [openFilters, setOpenFilters] = useState<Record<string, boolean>>({
     Category: true,
@@ -77,18 +78,25 @@ export default function ShoppingPage({ category, searchQuery, setCategory, onPro
 
   useEffect(() => {
     const loadData = async () => {
-      const allProducts = await getProducts();
-      let filtered = allProducts;
-      if (category && category !== 'Home') {
-        filtered = filtered.filter(p => p.category === category);
+      setLoading(true);
+      try {
+        let categoriesToFetch: string[] = [];
+        if (selectedCategoriesList.length > 0) {
+          categoriesToFetch = selectedCategoriesList;
+        } else if (category && category !== 'Home') {
+          categoriesToFetch = [category];
+        }
+        let fetched = await getProductsByCategories(categoriesToFetch);
+        if (searchQuery) {
+          fetched = fetched.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        setProducts(fetched.length > 0 ? fetched : generateProducts(searchQuery || category, 12));
+      } finally {
+        setLoading(false);
       }
-      if (searchQuery) {
-        filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-      }
-      setProducts(filtered.length > 0 ? filtered : generateProducts(searchQuery || category, 12));
     };
     loadData();
-  }, [category, searchQuery]);
+  }, [category, searchQuery, selectedCategoriesList]);
 
   return (
     <div className="w-full bg-white font-sans text-gray-900 pb-16">
@@ -227,17 +235,31 @@ export default function ShoppingPage({ category, searchQuery, setCategory, onPro
 
           {/* Product Grid */}
           <div className="flex-1">
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-x-6 md:gap-y-10 w-full pb-10">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} category={category} onClick={() => onProductClick?.(product)} />
-              ))}
-            </div>
-            
-            <div className="flex justify-center mt-10 w-full">
-               <button className="border border-gray-300 text-black px-12 py-3 text-sm font-semibold hover:border-black transition-colors rounded-sm">
-                  Load More Products
-               </button>
-            </div>
+            {loading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-x-6 md:gap-y-10 w-full pb-10">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 rounded aspect-[3/4] w-full mb-3" />
+                    <div className="bg-gray-200 rounded h-3 w-3/4 mb-2" />
+                    <div className="bg-gray-200 rounded h-3 w-1/2 mb-2" />
+                    <div className="bg-gray-200 rounded h-4 w-1/3" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-x-6 md:gap-y-10 w-full pb-10">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} category={category} onClick={() => onProductClick?.(product)} />
+                  ))}
+                </div>
+                <div className="flex justify-center mt-10 w-full">
+                  <button className="border border-gray-300 text-black px-12 py-3 text-sm font-semibold hover:border-black transition-colors rounded-sm">
+                    Load More Products
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
         </div>

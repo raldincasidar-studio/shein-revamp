@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product } from '../components/shopping/ShoppingPage';
 
@@ -49,6 +49,24 @@ export const getProducts = async (): Promise<Product[]> => {
     })) as Product[];
   } catch (error) {
     handleFirestoreError(error, 'get', PRODUCTS_COLLECTION);
+    return [];
+  }
+};
+
+export const getProductsByCategories = async (categories: string[]): Promise<Product[]> => {
+  try {
+    if (categories.length === 0) return getProducts();
+    const q = query(
+      collection(db, PRODUCTS_COLLECTION),
+      where('category', 'in', categories)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Product[];
+  } catch (error) {
+    handleFirestoreError(error, 'list', PRODUCTS_COLLECTION);
     return [];
   }
 };
