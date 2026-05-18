@@ -5,6 +5,7 @@ import { User } from 'firebase/auth';
 import { Product } from './ShoppingPage';
 import { getProducts } from '../../services/productService';
 import { getClosetItems, ClosetItem as FirestoreClosetItem } from '../../services/closetService';
+import { addToCart } from '../../services/cartService';
 
 interface VirtualClosetPageProps {
   onBack: () => void;
@@ -47,6 +48,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
 
   const [savedItems, setSavedItems] = useState<FirestoreClosetItem[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(true);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
     getProducts()
@@ -143,11 +145,32 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
     ));
   };
 
-  const handleCheckoutAll = () => {
-    if (onAddToCart) {
-      const products = Array.from(new Set(canvasItems.map(i => i.product.id)))
-        .map(id => canvasItems.find(i => i.product.id === id)!.product);
-      onAddToCart(products);
+  const handleCheckoutAll = async () => {
+    if (!user || canvasItems.length === 0) return;
+    setCheckingOut(true);
+    try {
+      const uniqueProducts = Array.from(
+        new Map(canvasItems.map(i => [i.product.id, i.product])).values()
+      );
+      await Promise.all(
+        uniqueProducts.map(product =>
+          addToCart(user.uid, {
+            productId: product.id,
+            productName: product.name,
+            productImage: product.imageUrl,
+            price: product.price,
+            selectedSize: product.sizes?.[0] || 'One Size',
+            selectedColor: product.colors?.[0] || 'Default',
+            quantity: 1,
+            category: product.category || ''
+          })
+        )
+      );
+      if (onAddToCart) onAddToCart(uniqueProducts);
+    } catch (err) {
+      console.error('Failed to add items to cart', err);
+    } finally {
+      setCheckingOut(false);
     }
   };
 
@@ -353,10 +376,18 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
               </div>
               {canvasItems.length > 0 && (
                 <button
-                  className="pointer-events-auto bg-black text-white px-6 py-3 rounded shadow-xl font-bold uppercase tracking-wider text-sm hover:bg-gray-800 transition-colors"
+                  className="pointer-events-auto bg-black text-white px-6 py-3 rounded shadow-xl font-bold uppercase tracking-wider text-sm hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   onClick={handleCheckoutAll}
+                  disabled={checkingOut}
                 >
-                  Checkout All Selection
+                  {checkingOut ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Adding to Cart...
+                    </>
+                  ) : (
+                    `Checkout All (${Array.from(new Map(canvasItems.map(i => [i.product.id, i])).size)} items)`
+                  )}
                 </button>
               )}
             </div>
