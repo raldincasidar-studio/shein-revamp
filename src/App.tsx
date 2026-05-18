@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, EyeOff, Eye, MapPin, ChevronDown, ArrowLeft } from 'lucide-react';
 import { auth, googleProvider, facebookProvider } from './lib/firebase';
 import {
@@ -11,9 +11,37 @@ import {
   User
 } from 'firebase/auth';
 
+import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
+import Dashboard from './components/dashboard/Dashboard';
+import ShoppingPage, { Product } from './components/shopping/ShoppingPage';
+import ProductPage from './components/shopping/ProductPage';
+import CartPage from './components/shopping/CartPage';
+import VirtualTryOnPage from './components/shopping/VirtualTryOnPage';
+import VirtualClosetPage from './components/shopping/VirtualClosetPage';
+import AdminProductsPage from './components/admin/AdminProductsPage';
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // General App Routing State
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'shop' | 'product' | 'cart' | 'tryon' | 'closet' | 'admin'>('dashboard');
+  const [currentCategory, setCurrentCategory] = useState<string>('Women');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setCurrentPage('product');
+    window.scrollTo(0, 0);
+  };
+
+  const handleTryOnClick = (product: Product) => {
+    setSelectedProduct(product);
+    setCurrentPage('tryon');
+    window.scrollTo(0, 0);
+  };
 
   const [isSignIn, setIsSignIn] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -116,31 +144,56 @@ export default function App() {
 
   if (user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 font-sans">
-        <div className="w-full max-w-md p-8 bg-white rounded-[24px] shadow-sm border border-gray-100 text-center space-y-6">
-           <h2 className="text-2xl font-black uppercase tracking-widest text-black">Dashboard</h2>
-           <div className="py-6 flex flex-col items-center">
-             {user.photoURL ? (
-                <img src={user.photoURL} alt="Profile" className="w-24 h-24 rounded-full mb-4 object-cover shadow-sm bg-gray-100" referrerPolicy="no-referrer" />
-             ) : (
-                <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mb-4 border border-gray-200">
-                  <span className="text-3xl font-bold text-gray-400">{(user.displayName || user.email || '?').charAt(0).toUpperCase()}</span>
-                </div>
-             )}
-             <p className="text-xl font-bold text-gray-900">{user.displayName || 'Welcome!'}</p>
-             <p className="text-sm font-medium text-gray-500 mt-1">{user.email}</p>
-             <span className="inline-block px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full mt-3">Logged In</span>
-           </div>
-           
-           <div className="pt-2">
-             <button 
-               onClick={handleSignOut}
-               className="w-full py-3.5 px-4 rounded-xl text-[15px] font-bold text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-all active:scale-[0.98]"
-             >
-               Sign Out
-             </button>
-           </div>
-        </div>
+      <div className={`flex flex-col min-h-screen ${currentPage === 'closet' ? 'xl:h-screen xl:overflow-hidden' : ''}`}>
+        {currentPage !== 'closet' && (
+          <Navbar 
+            onSignOut={handleSignOut} 
+            setPage={setCurrentPage} 
+            setCategory={setCurrentCategory} 
+            setSearchQuery={setSearchQuery}
+          />
+        )}
+        <main className={`flex-grow flex flex-col w-full ${currentPage === 'closet' ? 'xl:overflow-hidden' : ''}`}>
+          {currentPage === 'closet' ? (
+             <VirtualClosetPage 
+                onBack={() => setCurrentPage('dashboard')}
+                onAddToCart={(products) => {
+                   setCurrentPage('cart');
+                   window.scrollTo(0, 0);
+                }}
+             />
+          ) : currentPage === 'admin' ? (
+             <AdminProductsPage />
+          ) : currentPage === 'tryon' && selectedProduct ? (
+             <VirtualTryOnPage
+                product={selectedProduct}
+                onBack={() => setCurrentPage('product')}
+                onAddToCart={(p) => { 
+                   setCurrentPage('cart'); 
+                   window.scrollTo(0, 0);
+                }}
+             />
+          ) : currentPage === 'dashboard' ? (
+             <Dashboard onProductClick={handleProductClick} onTryOnClick={handleTryOnClick} />
+          ) : currentPage === 'product' && selectedProduct ? (
+             <ProductPage 
+                product={selectedProduct} 
+                onBack={() => setCurrentPage('shop')} 
+                onProductClick={handleProductClick}
+                onTryOnClick={() => handleTryOnClick(selectedProduct)}
+             />
+          ) : currentPage === 'cart' ? (
+             <CartPage onProductClick={handleProductClick} />
+          ) : (
+             <ShoppingPage 
+                category={currentCategory} 
+                searchQuery={searchQuery} 
+                setCategory={setCurrentCategory} 
+                onProductClick={handleProductClick}
+             />
+          )}
+        </main>
+        <Footer onAdminClick={() => setCurrentPage('admin')} />
       </div>
     );
   }
