@@ -34,7 +34,7 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
       {/* Hero Section */}
       <section className="relative w-full h-[70vh] min-h-[500px]">
         <img 
-          src="https://images.unsplash.com/photo-1512413914596-f0ca85bf63e8?q=80&w=1920&auto=format&fit=crop" 
+          src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=1920&auto=format&fit=crop" 
           alt="Summer Fashion" 
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
@@ -75,15 +75,15 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
           {/* Right Images */}
           <div className="lg:w-2/3 grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
             <div className="flex flex-col text-center">
-              <img src="https://images.unsplash.com/photo-1549439602-43ebca2327af?q=80&w=600&auto=format&fit=crop" alt="SOLEIA" className="w-full aspect-square object-cover mb-4 bg-gray-100" />
+              <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=600&auto=format&fit=crop" alt="SOLEIA" className="w-full aspect-square object-cover mb-4 bg-gray-100" />
               <h3 className="text-lg font-medium text-gray-900">SOLEIA</h3>
             </div>
             <div className="flex flex-col text-center">
-              <img src="https://images.unsplash.com/photo-1582236528766-267f818cc68a?q=80&w=600&auto=format&fit=crop" alt="Lumalex" className="w-full aspect-square object-cover mb-4 bg-gray-100" />
+              <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=600&auto=format&fit=crop&sat=-20" alt="Lumalex" className="w-full aspect-square object-cover mb-4 bg-gray-100" />
               <h3 className="text-lg font-medium text-gray-900">Lumalex</h3>
             </div>
             <div className="flex flex-col text-center">
-              <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=600&auto=format&fit=crop" alt="AKNOTIC" className="w-full aspect-square object-cover mb-4 bg-gray-100" />
+              <img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600&auto=format&fit=crop" alt="AKNOTIC" className="w-full aspect-square object-cover mb-4 bg-gray-100" />
               <h3 className="text-lg font-medium text-gray-900">AKNOTIC</h3>
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
       <section className="max-w-7xl mx-auto px-6 lg:px-8 py-20 w-full">
         <div className="relative w-full h-[600px] rounded-[40px] overflow-hidden group">
           <img 
-            src="https://images.unsplash.com/photo-1532453288672-3a27e9be9efd?q=80&w=1920&auto=format&fit=crop" 
+            src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=1920&auto=format&fit=crop" 
             alt="Summer Sale" 
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />

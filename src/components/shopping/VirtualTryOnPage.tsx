@@ -1,7 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { ArrowLeft, Camera, Upload, Sparkles, Download, Share2, ShoppingCart, AlertCircle } from 'lucide-react';
-import { Product } from './ShoppingPage';
-import { getGeminiApiKey } from '../../services/settingsService';
+import React, { useState, useRef } from "react";
+import {
+  ArrowLeft,
+  Camera,
+  Upload,
+  Sparkles,
+  Download,
+  Share2,
+  ShoppingCart,
+  AlertCircle,
+} from "lucide-react";
+import { Product } from "./ShoppingPage";
+import { getGeminiApiKey } from "../../services/settingsService";
 
 interface VirtualTryOnPageProps {
   product: Product;
@@ -9,13 +18,15 @@ interface VirtualTryOnPageProps {
   onAddToCart: (product: Product) => void;
 }
 
-async function fileToBase64(file: File): Promise<{ data: string; mimeType: string }> {
+async function fileToBase64(
+  file: File,
+): Promise<{ data: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      const [header, data] = result.split(',');
-      const mimeType = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
+      const [header, data] = result.split(",");
+      const mimeType = header.match(/:(.*?);/)?.[1] || "image/jpeg";
       resolve({ data, mimeType });
     };
     reader.onerror = reject;
@@ -23,16 +34,18 @@ async function fileToBase64(file: File): Promise<{ data: string; mimeType: strin
   });
 }
 
-async function urlToBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+async function urlToBase64(
+  url: string,
+): Promise<{ data: string; mimeType: string } | null> {
   try {
-    const response = await fetch(url, { mode: 'cors' });
+    const response = await fetch(url, { mode: "cors" });
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        const [header, data] = result.split(',');
-        const mimeType = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
+        const [header, data] = result.split(",");
+        const mimeType = header.match(/:(.*?);/)?.[1] || "image/jpeg";
         resolve({ data, mimeType });
       };
       reader.onerror = () => reject(null);
@@ -47,9 +60,9 @@ async function generateTryOnImage(
   personImageFile: File,
   productImageUrl: string,
   productName: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<string> {
-  const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20';
+  const GEMINI_MODEL = "gemini-2.5-flash-image";
   const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
   const personImage = await fileToBase64(personImageFile);
@@ -57,43 +70,43 @@ async function generateTryOnImage(
 
   const parts: object[] = [
     {
-      text: `The first image is a photo of a person. The second image is a clothing item called "${productName}". Please replace the person's current outfit with the clothing item from the second image. Keep the person's face, body, pose, and background exactly the same. Only change the clothing to match the outfit in the second image. Return a photorealistic result.`
+      text: `The first image is a photo of a person. The second image is a clothing item called "${productName}". Please replace the person's current outfit with the clothing item from the second image. Keep the person's face, body, pose, and background exactly the same. Only change the clothing to match the outfit in the second image. Return a photorealistic result.`,
     },
     {
       inline_data: {
         mime_type: personImage.mimeType,
-        data: personImage.data
-      }
-    }
+        data: personImage.data,
+      },
+    },
   ];
 
   if (productImage) {
     parts.push({
       inline_data: {
         mime_type: productImage.mimeType,
-        data: productImage.data
-      }
+        data: productImage.data,
+      },
     });
   } else {
     parts.push({
-      text: `The outfit to apply is: ${productName}. Apply this outfit style to the person.`
+      text: `The outfit to apply is: ${productName}. Apply this outfit style to the person.`,
     });
   }
 
   const body = {
     contents: [{ parts }],
     generationConfig: {
-      responseModalities: ['TEXT', 'IMAGE']
-    }
+      responseModalities: ["TEXT", "IMAGE"],
+    },
   };
 
   const response = await fetch(ENDPOINT, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -117,10 +130,16 @@ async function generateTryOnImage(
     }
   }
 
-  throw new Error('No image was returned by the AI. Try a clearer full-body photo.');
+  throw new Error(
+    "No image was returned by the AI. Try a clearer full-body photo.",
+  );
 }
 
-export default function VirtualTryOnPage({ product, onBack, onAddToCart }: VirtualTryOnPageProps) {
+export default function VirtualTryOnPage({
+  product,
+  onBack,
+  onAddToCart,
+}: VirtualTryOnPageProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -147,13 +166,20 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
     try {
       const apiKey = await getGeminiApiKey();
       if (!apiKey) {
-        throw new Error('No Gemini API key configured. Please set it in Admin → Settings.');
+        throw new Error(
+          "No Gemini API key configured. Please set it in Admin → Settings.",
+        );
       }
 
-      const result = await generateTryOnImage(file, product.imageUrl, product.name, apiKey);
+      const result = await generateTryOnImage(
+        file,
+        product.imageUrl,
+        product.name,
+        apiKey,
+      );
       setGeneratedImage(result);
     } catch (err: any) {
-      setError(err?.message || 'Something went wrong. Please try again.');
+      setError(err?.message || "Something went wrong. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -171,14 +197,14 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
     setUploadedFile(null);
     setGeneratedImage(null);
     setError(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleDownload = () => {
     if (!generatedImage) return;
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = generatedImage;
-    a.download = `tryon-${product.name.replace(/\s+/g, '-')}.png`;
+    a.download = `tryon-${product.name.replace(/\s+/g, "-")}.png`;
     a.click();
   };
 
@@ -187,12 +213,17 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
       {/* Header */}
       <header className="bg-white h-16 px-4 md:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-3 md:gap-4">
-          <button onClick={onBack} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
             <ArrowLeft className="w-5 h-5 text-gray-800" />
           </button>
           <div className="flex items-center gap-2 text-[#902cae]">
             <Sparkles className="w-5 h-5" />
-            <h1 className="text-sm md:text-lg font-bold text-gray-900 tracking-tight">AI Virtual Try-On</h1>
+            <h1 className="text-sm md:text-lg font-bold text-gray-900 tracking-tight">
+              AI Virtual Try-On
+            </h1>
           </div>
         </div>
         <div className="text-xl md:text-3xl font-black tracking-widest uppercase text-gray-900">
@@ -208,17 +239,27 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
               <div className="w-24 h-24 bg-[#e2beff] rounded-full flex items-center justify-center mb-6">
                 <Camera className="w-12 h-12 text-[#902cae]" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Try It On Yourself</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                Try It On Yourself
+              </h2>
               <p className="text-gray-500 mb-2 max-w-sm">
-                Upload a full-body photo and our AI will dress you in this outfit
+                Upload a full-body photo and our AI will dress you in this
+                outfit
               </p>
               <p className="text-xs text-gray-400 mb-8 max-w-xs">
-                Best results with a clear, well-lit, front-facing full-body photo
+                Best results with a clear, well-lit, front-facing full-body
+                photo
               </p>
 
               <div className="mb-6 w-full max-w-[200px]">
-                <img src={product.imageUrl} alt={product.name} className="w-full aspect-[3/4] object-cover rounded-xl shadow-md" />
-                <p className="text-xs text-gray-500 mt-2 font-medium line-clamp-1">{product.name}</p>
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full aspect-[3/4] object-cover rounded-xl shadow-md"
+                />
+                <p className="text-xs text-gray-500 mt-2 font-medium line-clamp-1">
+                  {product.name}
+                </p>
               </div>
 
               <div className="flex flex-col gap-4 w-full max-w-[240px]">
@@ -239,7 +280,7 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
                 <button
                   onClick={() => {
                     if (fileInputRef.current) {
-                      fileInputRef.current.setAttribute('capture', 'user');
+                      fileInputRef.current.setAttribute("capture", "user");
                       fileInputRef.current.click();
                     }
                   }}
@@ -262,16 +303,28 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
                     <div className="absolute inset-0 w-20 h-20 border-4 border-[#902cae] border-t-transparent rounded-full animate-spin"></div>
                     <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-[#e2beff]" />
                   </div>
-                  <h3 className="text-xl font-bold animate-pulse text-[#e2beff] mb-2">AI is styling you...</h3>
-                  <p className="text-gray-400 text-sm">Applying <span className="text-white font-medium">{product.name}</span> to your photo</p>
-                  <p className="text-gray-500 text-xs mt-2">This may take 15–30 seconds</p>
+                  <h3 className="text-xl font-bold animate-pulse text-[#e2beff] mb-2">
+                    AI is styling you...
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Applying{" "}
+                    <span className="text-white font-medium">
+                      {product.name}
+                    </span>{" "}
+                    to your photo
+                  </p>
+                  <p className="text-gray-500 text-xs mt-2">
+                    This may take 15–30 seconds
+                  </p>
                 </div>
               ) : error ? (
                 <div className="flex flex-col items-center justify-center text-white max-w-sm text-center">
                   <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
                     <AlertCircle className="w-8 h-8 text-red-400" />
                   </div>
-                  <h3 className="text-lg font-bold text-red-300 mb-2">Generation Failed</h3>
+                  <h3 className="text-lg font-bold text-red-300 mb-2">
+                    Generation Failed
+                  </h3>
                   <p className="text-gray-400 text-sm mb-6">{error}</p>
                   <div className="flex flex-col gap-3 w-full max-w-[220px]">
                     <button
@@ -310,24 +363,46 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
             {/* Right: Sidebar */}
             <div className="w-[320px] bg-white shrink-0 hidden md:flex flex-col border-l border-gray-200 p-6 overflow-y-auto z-10 sticky top-16 h-[calc(100vh-4rem)]">
               <div className="mb-8 p-4 border border-gray-200 rounded-sm shadow-sm relative">
-                <img src={product.imageUrl} alt={product.name} className="w-full aspect-[3/4] object-cover mb-3" />
-                <h3 className="text-xs font-medium text-gray-800 line-clamp-2 mb-1">{product.name}</h3>
-                <p className="text-[10px] text-gray-500 mb-2">SKU: sz2411181028155675</p>
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full aspect-[3/4] object-cover mb-3"
+                />
+                <h3 className="text-xs font-medium text-gray-800 line-clamp-2 mb-1">
+                  {product.name}
+                </h3>
+                <p className="text-[10px] text-gray-500 mb-2">
+                  SKU: sz2411181028155675
+                </p>
                 <div className="flex items-center space-x-1 mb-2">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <svg key={i} className={`w-3 h-3 ${i <= 4 ? "text-yellow-400 fill-yellow-400" : "text-gray-300 fill-gray-300"}`} viewBox="0 0 20 20">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <svg
+                      key={i}
+                      className={`w-3 h-3 ${i <= 4 ? "text-yellow-400 fill-yellow-400" : "text-gray-300 fill-gray-300"}`}
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                   ))}
-                  <span className="text-[10px] text-gray-500 ml-1">({product.reviews} reviews)</span>
+                  <span className="text-[10px] text-gray-500 ml-1">
+                    ({product.reviews} reviews)
+                  </span>
                 </div>
-                <div className="font-bold text-lg text-gray-900">₱{product.price}</div>
+                <div className="font-bold text-lg text-gray-900">
+                  ₱{product.price}
+                </div>
               </div>
 
               {uploadedImage && !isGenerating && (
                 <div className="mb-6">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Your Photo</p>
-                  <img src={uploadedImage} alt="Your upload" className="w-full aspect-[3/4] object-cover rounded border border-gray-200" />
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                    Your Photo
+                  </p>
+                  <img
+                    src={uploadedImage}
+                    alt="Your upload"
+                    className="w-full aspect-[3/4] object-cover rounded border border-gray-200"
+                  />
                 </div>
               )}
 
