@@ -154,7 +154,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
   const categories = ['All', 'Tops', 'Bottoms', 'Dresses', 'Shoes', 'Other'] as const;
 
   return (
-    <div className="flex-1 flex flex-col font-sans w-full bg-gray-50 xl:h-full xl:overflow-hidden">
+    <div className="flex-1 flex flex-col font-sans w-full bg-gray-50 xl:h-[calc(100vh-120px)] xl:overflow-hidden">
       {/* Header */}
       <header className="bg-black h-16 px-4 flex items-center justify-between shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -284,7 +284,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
         </div>
 
         {/* Center - Mix & Match Studio */}
-        <div className="flex-1 flex flex-col relative min-h-[600px] xl:h-full overflow-hidden bg-[#fafafa]">
+        <div className="flex-1 flex flex-col relative min-h-[500px] xl:h-full overflow-hidden bg-[#fafafa]">
           <div className="h-14 bg-white border-b border-gray-200 flex justify-between items-center px-4 shrink-0 shadow-sm z-10 relative">
             <h2 className="text-lg font-bold text-gray-800">Mix & Match Studio</h2>
             <div className="flex items-center gap-2">
