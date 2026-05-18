@@ -1,4 +1,4 @@
-import { MapPin, Search, ShoppingCart, Heart, Shirt, User, ChevronDown, Menu, X, Shield } from 'lucide-react';
+import { MapPin, Search, ShoppingCart, Heart, Shirt, User, ChevronDown, Menu, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface NavbarProps {
@@ -124,7 +124,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
           </button>
           <button className="hover:text-gray-300 transition-colors hidden md:block"><Heart className="h-5 w-5" /></button>
           <button onClick={() => setPage && setPage('closet')} className="hover:text-gray-300 transition-colors hidden md:block"><Shirt className="h-5 w-5" /></button>
-          <button onClick={() => setPage && setPage('admin')} className="hover:text-gray-300 transition-colors hidden md:block"><Shield className="h-5 w-5" /></button>
           
           <div className="relative">
             <button 
@@ -287,10 +286,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
              <button onClick={() => { setIsMobileMenuOpen(false); setPage && setPage('closet'); }} className="flex flex-col items-center hover:text-gray-300 text-gray-400">
                 <Shirt className="h-6 w-6 mb-1 text-white" />
                 <span className="text-xs font-semibold text-white">Closet</span>
-             </button>
-             <button onClick={() => { setIsMobileMenuOpen(false); setPage && setPage('admin'); }} className="flex flex-col items-center hover:text-gray-300 text-gray-400">
-                <Shield className="h-6 w-6 mb-1 text-white" />
-                <span className="text-xs font-semibold text-white">Admin</span>
              </button>
            </div>
         </div>
