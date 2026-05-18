@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, RefreshCw, Database } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, RefreshCw, Database, Settings, Key, CheckCircle } from 'lucide-react';
 import { Product } from '../shopping/ShoppingPage';
 import { getProducts, addProduct, updateProduct, deleteProduct } from '../../services/productService';
 import { seedProducts } from '../../services/seedService';
+import { getGeminiApiKey, saveGeminiApiKey } from '../../services/settingsService';
 
 const ALL_CATEGORIES = [
   'Women',
@@ -32,7 +33,11 @@ const ALL_CATEGORIES = [
   'Accessories',
 ];
 
+type AdminTab = 'products' | 'settings';
+
 export default function AdminProductsPage() {
+  const [activeTab, setActiveTab] = useState<AdminTab>('products');
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,6 +59,11 @@ export default function AdminProductsPage() {
   const [sizesInput, setSizesInput] = useState('');
   const [colorsInput, setColorsInput] = useState('');
 
+  const [geminiKey, setGeminiKey] = useState('');
+  const [geminiKeySaving, setGeminiKeySaving] = useState(false);
+  const [geminiKeySaved, setGeminiKeySaved] = useState(false);
+  const [geminiKeyLoading, setGeminiKeyLoading] = useState(false);
+
   const fetchProducts = async () => {
     setLoading(true);
     const data = await getProducts();
@@ -64,6 +74,16 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      setGeminiKeyLoading(true);
+      getGeminiApiKey().then(key => {
+        if (key) setGeminiKey(key);
+        setGeminiKeyLoading(false);
+      });
+    }
+  }, [activeTab]);
 
   const openAddModal = () => {
     setFormData({ name: '', price: 0, rating: 5, reviews: 0, sold: 0, imageUrl: '', category: 'Tops', description: '', sizes: [], colors: [] });
@@ -124,77 +144,170 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleSaveGeminiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGeminiKeySaving(true);
+    setGeminiKeySaved(false);
+    await saveGeminiApiKey(geminiKey.trim());
+    setGeminiKeySaving(false);
+    setGeminiKeySaved(true);
+    setTimeout(() => setGeminiKeySaved(false), 3000);
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto w-full">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Manage Products</h2>
-        <div className="flex gap-2">
-          <button onClick={handleSeed} className="bg-gray-200 p-2 rounded hover:bg-gray-300 transition-colors" title="Seed Data">
-            <Database className="w-5 h-5 text-gray-700" />
-          </button>
-          <button onClick={fetchProducts} className="bg-gray-200 p-2 rounded hover:bg-gray-300 transition-colors" title="Refresh">
-            <RefreshCw className="w-5 h-5 text-gray-700" />
+      {/* Tab Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'products' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Products
           </button>
           <button
-            onClick={openAddModal}
-            className="bg-black text-white px-4 py-2 rounded font-semibold flex items-center gap-2 hover:bg-gray-800 transition-colors"
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors flex items-center gap-1.5 ${activeTab === 'settings' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <Plus className="w-5 h-5" /> Add Product
+            <Settings className="w-4 h-4" />
+            Settings
           </button>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadowoverflow-hidden border border-gray-200">
-        {loading ? (
-          <div className="p-10 text-center text-gray-500">Loading products...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase font-semibold">
-                <tr>
-                  <th className="px-6 py-4">Image</th>
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Stats</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">No products found. Add one above.</td>
-                  </tr>
-                ) : (
-                  products.map(p => (
-                    <tr key={p.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded object-cover shadow-sm bg-gray-100" />
-                      </td>
-                      <td className="px-6 py-4 font-medium text-gray-900 break-words max-w-xs">{p.name}</td>
-                      <td className="px-6 py-4">{p.category || 'N/A'}</td>
-                      <td className="px-6 py-4 font-semibold text-black">${p.price}</td>
-                      <td className="px-6 py-4 space-y-1 text-xs">
-                        <div className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full inline-block mr-1">⭐ {p.rating}</div>
-                        <div className="text-gray-500">{p.sold} sold</div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button onClick={() => openEditModal(p)} className="text-blue-600 hover:bg-blue-50 p-2 rounded mr-2 transition-colors">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        {activeTab === 'products' && (
+          <div className="flex gap-2">
+            <button onClick={handleSeed} className="bg-gray-200 p-2 rounded hover:bg-gray-300 transition-colors" title="Seed Data">
+              <Database className="w-5 h-5 text-gray-700" />
+            </button>
+            <button onClick={fetchProducts} className="bg-gray-200 p-2 rounded hover:bg-gray-300 transition-colors" title="Refresh">
+              <RefreshCw className="w-5 h-5 text-gray-700" />
+            </button>
+            <button
+              onClick={openAddModal}
+              className="bg-black text-white px-4 py-2 rounded font-semibold flex items-center gap-2 hover:bg-gray-800 transition-colors"
+            >
+              <Plus className="w-5 h-5" /> Add Product
+            </button>
           </div>
         )}
       </div>
 
+      {/* Products Tab */}
+      {activeTab === 'products' && (
+        <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
+          {loading ? (
+            <div className="p-10 text-center text-gray-500">Loading products...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-4">Image</th>
+                    <th className="px-6 py-4">Name</th>
+                    <th className="px-6 py-4">Category</th>
+                    <th className="px-6 py-4">Price</th>
+                    <th className="px-6 py-4">Stats</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-gray-500">No products found. Add one above.</td>
+                    </tr>
+                  ) : (
+                    products.map(p => (
+                      <tr key={p.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded object-cover shadow-sm bg-gray-100" />
+                        </td>
+                        <td className="px-6 py-4 font-medium text-gray-900 break-words max-w-xs">{p.name}</td>
+                        <td className="px-6 py-4">{p.category || 'N/A'}</td>
+                        <td className="px-6 py-4 font-semibold text-black">${p.price}</td>
+                        <td className="px-6 py-4 space-y-1 text-xs">
+                          <div className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full inline-block mr-1">⭐ {p.rating}</div>
+                          <div className="text-gray-500">{p.sold} sold</div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={() => openEditModal(p)} className="text-blue-600 hover:bg-blue-50 p-2 rounded mr-2 transition-colors">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="max-w-xl">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-[#e2beff] rounded-full flex items-center justify-center">
+                <Key className="w-5 h-5 text-[#902cae]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Gemini API Key</h3>
+                <p className="text-xs text-gray-500">Used for the Virtual Try-On AI feature</p>
+              </div>
+            </div>
+
+            {geminiKeyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-6 h-6 border-2 border-[#902cae] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveGeminiKey} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">API Key</label>
+                  <input
+                    type="password"
+                    value={geminiKey}
+                    onChange={e => setGeminiKey(e.target.value)}
+                    placeholder="AIza..."
+                    required
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-mono focus:ring-2 focus:ring-[#902cae] focus:border-transparent outline-none transition"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-[#902cae] hover:underline">Google AI Studio</a>. It's stored securely in your database.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={geminiKeySaving || !geminiKey.trim()}
+                  className="w-full bg-black text-white py-2.5 rounded-lg font-bold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {geminiKeySaving ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : geminiKeySaved ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      Saved!
+                    </>
+                  ) : (
+                    'Save API Key'
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed">
+            <strong>Note:</strong> The API key is stored in your Firestore database and fetched server-side only when the Virtual Try-On feature is used. Never share or expose this key publicly.
+          </div>
+        </div>
+      )}
+
+      {/* Product Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg relative shadow-xl max-h-[90vh] overflow-y-auto">

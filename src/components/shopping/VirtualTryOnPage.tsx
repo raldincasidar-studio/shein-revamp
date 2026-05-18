@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Camera, Upload, Sparkles, Download, Share2, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Camera, Upload, Sparkles, Download, Share2, ShoppingCart, AlertCircle } from 'lucide-react';
 import { Product } from './ShoppingPage';
+import { getGeminiApiKey } from '../../services/settingsService';
 
 interface VirtualTryOnPageProps {
   product: Product;
@@ -8,38 +9,177 @@ interface VirtualTryOnPageProps {
   onAddToCart: (product: Product) => void;
 }
 
+async function fileToBase64(file: File): Promise<{ data: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [header, data] = result.split(',');
+      const mimeType = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
+      resolve({ data, mimeType });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function urlToBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const [header, data] = result.split(',');
+        const mimeType = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
+        resolve({ data, mimeType });
+      };
+      reader.onerror = () => reject(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function generateTryOnImage(
+  personImageFile: File,
+  productImageUrl: string,
+  productName: string,
+  apiKey: string
+): Promise<string> {
+  const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20';
+  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+  const personImage = await fileToBase64(personImageFile);
+  const productImage = await urlToBase64(productImageUrl);
+
+  const parts: object[] = [
+    {
+      text: `The first image is a photo of a person. The second image is a clothing item called "${productName}". Please replace the person's current outfit with the clothing item from the second image. Keep the person's face, body, pose, and background exactly the same. Only change the clothing to match the outfit in the second image. Return a photorealistic result.`
+    },
+    {
+      inline_data: {
+        mime_type: personImage.mimeType,
+        data: personImage.data
+      }
+    }
+  ];
+
+  if (productImage) {
+    parts.push({
+      inline_data: {
+        mime_type: productImage.mimeType,
+        data: productImage.data
+      }
+    });
+  } else {
+    parts.push({
+      text: `The outfit to apply is: ${productName}. Apply this outfit style to the person.`
+    });
+  }
+
+  const body = {
+    contents: [{ parts }],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE']
+    }
+  };
+
+  const response = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let message = `API error (${response.status})`;
+    try {
+      const err = JSON.parse(errorText);
+      message = err?.error?.message || message;
+    } catch {}
+    throw new Error(message);
+  }
+
+  const data = await response.json();
+  const candidates = data?.candidates || [];
+
+  for (const candidate of candidates) {
+    for (const part of candidate?.content?.parts || []) {
+      if (part.inlineData?.data) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+  }
+
+  throw new Error('No image was returned by the AI. Try a clearer full-body photo.');
+}
+
 export default function VirtualTryOnPage({ product, onBack, onAddToCart }: VirtualTryOnPageProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setUploadedImage(imageUrl);
-      simulateGeneration(imageUrl);
+    if (!file) return;
+    const imageUrl = URL.createObjectURL(file);
+    setUploadedImage(imageUrl);
+    setUploadedFile(file);
+    runAIGeneration(file);
+  };
+
+  const runAIGeneration = async (file: File) => {
+    setStep(2);
+    setIsGenerating(true);
+    setError(null);
+    setGeneratedImage(null);
+
+    try {
+      const apiKey = await getGeminiApiKey();
+      if (!apiKey) {
+        throw new Error('No Gemini API key configured. Please set it in Admin → Settings.');
+      }
+
+      const result = await generateTryOnImage(file, product.imageUrl, product.name, apiKey);
+      setGeneratedImage(result);
+    } catch (err: any) {
+      setError(err?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const simulateGeneration = (sourceImage: string) => {
-    setStep(2);
-    setIsGenerating(true);
-    // Simulate AI generation time
-    setTimeout(() => {
-      setIsGenerating(false);
-      // For this demo, we'll just show the user's uploaded image or a placeholder
-      // In a real app, this would be the AI-generated result
-      setGeneratedImage(sourceImage);
-    }, 3000);
+  const handleRetry = () => {
+    if (uploadedFile) {
+      runAIGeneration(uploadedFile);
+    }
   };
 
   const handleChangePhoto = () => {
     setStep(1);
     setUploadedImage(null);
+    setUploadedFile(null);
     setGeneratedImage(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDownload = () => {
+    if (!generatedImage) return;
+    const a = document.createElement('a');
+    a.href = generatedImage;
+    a.download = `tryon-${product.name.replace(/\s+/g, '-')}.png`;
+    a.click();
   };
 
   return (
@@ -52,7 +192,7 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
           </button>
           <div className="flex items-center gap-2 text-[#902cae]">
             <Sparkles className="w-5 h-5" />
-            <h1 className="text-sm md:text-lg font-bold text-gray-900 tracking-tight">Hyper-Realistic Virtual Try-On</h1>
+            <h1 className="text-sm md:text-lg font-bold text-gray-900 tracking-tight">AI Virtual Try-On</h1>
           </div>
         </div>
         <div className="text-xl md:text-3xl font-black tracking-widest uppercase text-gray-900">
@@ -63,34 +203,46 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
       {/* Main Content */}
       <div className="flex-1 flex w-full relative">
         {step === 1 ? (
-          // Step 1: Upload UI
           <div className="w-full flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-lg p-10 flex flex-col items-center text-center">
               <div className="w-24 h-24 bg-[#e2beff] rounded-full flex items-center justify-center mb-6">
                 <Camera className="w-12 h-12 text-[#902cae]" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-3">Try It On Yourself</h2>
-              <p className="text-gray-500 mb-8 max-w-sm">
-                Upload a full-body photo to see how this top looks on you
+              <p className="text-gray-500 mb-2 max-w-sm">
+                Upload a full-body photo and our AI will dress you in this outfit
               </p>
-              
+              <p className="text-xs text-gray-400 mb-8 max-w-xs">
+                Best results with a clear, well-lit, front-facing full-body photo
+              </p>
+
+              <div className="mb-6 w-full max-w-[200px]">
+                <img src={product.imageUrl} alt={product.name} className="w-full aspect-[3/4] object-cover rounded-xl shadow-md" />
+                <p className="text-xs text-gray-500 mt-2 font-medium line-clamp-1">{product.name}</p>
+              </div>
+
               <div className="flex flex-col gap-4 w-full max-w-[240px]">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  ref={fileInputRef} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  ref={fileInputRef}
                   onChange={handleFileUpload}
                 />
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full bg-[#902cae] hover:bg-[#7D29A8] text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
                 >
                   <Upload className="w-4 h-4" />
                   Upload Photo
                 </button>
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
+                <button
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.setAttribute('capture', 'user');
+                      fileInputRef.current.click();
+                    }
+                  }}
                   className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
                 >
                   <Camera className="w-4 h-4" />
@@ -100,24 +252,53 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
             </div>
           </div>
         ) : (
-          // Step 2: Result UI
           <div className="w-full flex items-stretch">
             {/* Left: Generated Image */}
             <div className="flex-1 flex items-center justify-center relative p-8">
               {isGenerating ? (
-                <div className="flex flex-col items-center justify-center text-white">
-                  <div className="w-16 h-16 border-4 border-[#902cae] border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <h3 className="text-xl font-bold mt-4 animate-pulse text-[#e2beff]">Generating your look...</h3>
-                  <p className="text-gray-400 mt-2">Applying {product.name} to your photo</p>
+                <div className="flex flex-col items-center justify-center text-white max-w-sm text-center">
+                  <div className="relative mb-6">
+                    <div className="w-20 h-20 border-4 border-[#902cae]/30 rounded-full"></div>
+                    <div className="absolute inset-0 w-20 h-20 border-4 border-[#902cae] border-t-transparent rounded-full animate-spin"></div>
+                    <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-[#e2beff]" />
+                  </div>
+                  <h3 className="text-xl font-bold animate-pulse text-[#e2beff] mb-2">AI is styling you...</h3>
+                  <p className="text-gray-400 text-sm">Applying <span className="text-white font-medium">{product.name}</span> to your photo</p>
+                  <p className="text-gray-500 text-xs mt-2">This may take 15–30 seconds</p>
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center text-white max-w-sm text-center">
+                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                    <AlertCircle className="w-8 h-8 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-red-300 mb-2">Generation Failed</h3>
+                  <p className="text-gray-400 text-sm mb-6">{error}</p>
+                  <div className="flex flex-col gap-3 w-full max-w-[220px]">
+                    <button
+                      onClick={handleRetry}
+                      className="w-full bg-[#902cae] hover:bg-[#7D29A8] text-white py-2.5 rounded-lg font-bold text-sm transition-colors"
+                    >
+                      Try Again
+                    </button>
+                    <button
+                      onClick={handleChangePhoto}
+                      className="w-full bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-lg font-medium text-sm transition-colors"
+                    >
+                      Change Photo
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="relative h-full max-h-[calc(100vh-4rem)] w-full flex items-center justify-center">
-                  <img 
-                    src={generatedImage || product.imageUrl} 
-                    alt="Virtual Try-On Result" 
-                    className="max-h-full max-w-full object-contain"
+                  <img
+                    src={generatedImage || product.imageUrl}
+                    alt="Virtual Try-On Result"
+                    className="max-h-full max-w-full object-contain rounded-lg"
                   />
-                  {/* Decorative corner brackets like scanning effect */}
+                  <div className="absolute top-2 right-2 bg-[#902cae] text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    AI Generated
+                  </div>
                   <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/30 hidden md:block"></div>
                   <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/30 hidden md:block"></div>
                   <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/30 hidden md:block"></div>
@@ -128,7 +309,6 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
 
             {/* Right: Sidebar */}
             <div className="w-[320px] bg-white shrink-0 hidden md:flex flex-col border-l border-gray-200 p-6 overflow-y-auto z-10 sticky top-16 h-[calc(100vh-4rem)]">
-              {/* Product Info */}
               <div className="mb-8 p-4 border border-gray-200 rounded-sm shadow-sm relative">
                 <img src={product.imageUrl} alt={product.name} className="w-full aspect-[3/4] object-cover mb-3" />
                 <h3 className="text-xs font-medium text-gray-800 line-clamp-2 mb-1">{product.name}</h3>
@@ -144,57 +324,77 @@ export default function VirtualTryOnPage({ product, onBack, onAddToCart }: Virtu
                 <div className="font-bold text-lg text-gray-900">₱{product.price}</div>
               </div>
 
-              {/* Actions */}
+              {uploadedImage && !isGenerating && (
+                <div className="mb-6">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Your Photo</p>
+                  <img src={uploadedImage} alt="Your upload" className="w-full aspect-[3/4] object-cover rounded border border-gray-200" />
+                </div>
+              )}
+
               <div className="flex flex-col gap-3 mt-auto">
-                <button 
-                  disabled={isGenerating}
+                <button
+                  disabled={isGenerating || !!error}
                   onClick={() => onAddToCart(product)}
                   className="w-full bg-black text-white font-bold py-3 px-4 rounded hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShoppingCart className="w-5 h-5" />
                   Add to Cart
                 </button>
-                <button 
-                  disabled={isGenerating}
-                  className="w-full bg-white border border-gray-300 text-gray-800 font-medium py-2.5 px-4 rounded hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                <button
+                  disabled={isGenerating || !generatedImage}
+                  onClick={handleDownload}
+                  className="w-full bg-white border border-gray-300 text-gray-800 font-medium py-2.5 px-4 rounded hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-4 h-4" />
-                  Save
+                  Save Result
                 </button>
-                <button 
+                <button
                   disabled={isGenerating}
                   className="w-full bg-white border border-gray-300 text-gray-800 font-medium py-2.5 px-4 rounded hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <Share2 className="w-4 h-4" />
                   Share
                 </button>
-                <button 
+                {!isGenerating && !error && generatedImage && (
+                  <button
+                    onClick={handleRetry}
+                    className="w-full bg-[#f3e8ff] border border-[#c084fc] text-[#7e22ce] font-medium py-2.5 px-4 rounded hover:bg-[#ede9fe] transition-colors flex items-center justify-center gap-2 mt-1"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Regenerate
+                  </button>
+                )}
+                <button
                   onClick={handleChangePhoto}
-                  className="w-full bg-white border border-gray-300 text-gray-800 font-medium py-2.5 px-4 rounded hover:bg-gray-50 transition-colors mt-4 disabled:opacity-50"
+                  className="w-full bg-white border border-gray-300 text-gray-800 font-medium py-2.5 px-4 rounded hover:bg-gray-50 transition-colors mt-1 disabled:opacity-50"
                 >
                   Change Photo
                 </button>
               </div>
             </div>
-            
-            {/* Mobile Actions Overlay (visible only on small screens when generated) */}
-            {!isGenerating && step === 2 && (
+
+            {/* Mobile Actions Overlay */}
+            {!isGenerating && !error && step === 2 && (
               <div className="md:hidden absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6 pt-20 flex flex-col gap-3 z-10">
                 <div className="flex gap-3 mb-2">
-                  <button className="flex-1 bg-white text-black font-bold py-3 rounded-full hover:bg-gray-100 flex items-center justify-center gap-2">
+                  <button
+                    onClick={handleDownload}
+                    disabled={!generatedImage}
+                    className="flex-1 bg-white text-black font-bold py-3 rounded-full hover:bg-gray-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
                     <Download className="w-5 h-5" /> Save
                   </button>
                   <button className="flex-1 bg-white text-black font-bold py-3 rounded-full hover:bg-gray-100 flex items-center justify-center gap-2">
                     <Share2 className="w-5 h-5" /> Share
                   </button>
                 </div>
-                <button 
+                <button
                   onClick={() => onAddToCart(product)}
                   className="w-full bg-[#902cae] hover:bg-[#7D29A8] text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2"
                 >
                   <ShoppingCart className="w-5 h-5" /> Add to Cart
                 </button>
-                <button 
+                <button
                   onClick={handleChangePhoto}
                   className="w-full text-white/80 font-medium py-2 text-sm mt-2"
                 >
