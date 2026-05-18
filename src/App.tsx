@@ -70,6 +70,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleNavigateToShop = (event: Event) => {
+      const customEvent = event as CustomEvent<{ category?: string }>;
+      setCurrentCategory(customEvent.detail?.category || 'Women');
+      setSearchQuery('');
+      setCurrentPage('shop');
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('navigate-to-shop', handleNavigateToShop as EventListener);
+    return () => window.removeEventListener('navigate-to-shop', handleNavigateToShop as EventListener);
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       setCartCount(0);
       return;

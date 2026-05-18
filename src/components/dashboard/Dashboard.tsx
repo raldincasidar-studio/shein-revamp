@@ -12,6 +12,12 @@ interface DashboardProps {
 export default function Dashboard({ onProductClick, onTryOnClick }: DashboardProps) {
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
+  const handleShopNow = () => {
+    window.dispatchEvent(new CustomEvent('navigate-to-shop', { detail: { category: 'Women' } }));
+  };
+  const handleShopNewIn = () => {
+    window.dispatchEvent(new CustomEvent('navigate-to-shop', { detail: { category: 'New In' } }));
+  };
 
   useEffect(() => {
     const fetchTrending = async () => {
@@ -48,7 +54,7 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
               Everything you need for a stylish escape
             </p>
             <div className="pl-4">
-               <button className="bg-white text-black px-10 py-3 font-semibold text-sm hover:bg-gray-100 transition-colors uppercase tracking-wider">
+               <button onClick={handleShopNow} className="bg-white text-black px-10 py-3 font-semibold text-sm hover:bg-gray-100 transition-colors uppercase tracking-wider">
                  Shop Now
                </button>
             </div>
@@ -67,7 +73,7 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
             <p className="text-gray-600 mb-8 leading-relaxed font-serif">
               New arrivals, now dropping five days a week – discover the latest launches onsite from Monday to Friday
             </p>
-            <button className="bg-black text-white px-8 py-3.5 font-bold text-[13px] uppercase tracking-widest hover:bg-gray-900 transition-colors">
+            <button onClick={handleShopNewIn} className="bg-black text-white px-8 py-3.5 font-bold text-[13px] uppercase tracking-widest hover:bg-gray-900 transition-colors">
               Shop New In
             </button>
           </div>
@@ -133,7 +139,7 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
             <h3 className="text-white text-3xl md:text-5xl font-light mb-2 font-serif italic drop-shadow-md">Summer Sale</h3>
             <h2 className="text-white text-5xl md:text-7xl font-black uppercase tracking-widest drop-shadow-lg mb-4" style={{ fontFamily: "monospace" }}>DEFINING DETAILS</h2>
             <p className="text-white text-xl md:text-2xl font-serif mb-8 drop-shadow-md">Up to 60% off</p>
-            <button className="bg-white text-black px-10 py-3.5 font-semibold text-sm hover:bg-gray-100 transition-colors uppercase tracking-wider rounded-lg shadow-lg">
+            <button onClick={handleShopNow} className="bg-white text-black px-10 py-3.5 font-semibold text-sm hover:bg-gray-100 transition-colors uppercase tracking-wider rounded-lg shadow-lg">
               Shop Now
             </button>
           </div>
