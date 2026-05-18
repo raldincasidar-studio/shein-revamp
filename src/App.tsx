@@ -211,7 +211,7 @@ export default function App() {
              />
           )}
         </main>
-        <Footer onAdminClick={() => setCurrentPage('admin')} />
+        {currentPage !== 'closet' && <Footer onAdminClick={() => setCurrentPage('admin')} />}
       </div>
     );
   }
