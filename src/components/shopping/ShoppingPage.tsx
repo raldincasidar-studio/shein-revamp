@@ -17,18 +17,6 @@ export interface Product {
   colors?: string[];
 }
 
-const generateProducts = (category: string, count: number): Product[] => {
-  return Array.from({ length: count }).map((_, i) => ({
-    id: `${category}-${i}`,
-    name: `${category} Collection Item ${i + 1}`,
-    price: 411,
-    rating: 5,
-    reviews: 527,
-    sold: 21600,
-    imageUrl: 'https://images.unsplash.com/photo-1549439602-43ebca2327af?q=80&w=600&auto=format&fit=crop'
-  }));
-};
-
 interface ShoppingPageProps {
   category: string;
   searchQuery?: string;
@@ -76,6 +64,27 @@ export default function ShoppingPage({ category, searchQuery, setCategory, onPro
     setPriceRange([priceRange[0], value]);
   }
 
+  const normalizeProduct = (product: Record<string, unknown>): Product => ({
+    id: String(product.id ?? ''),
+    name: String(product.name ?? product.title ?? 'Untitled Product'),
+    price: Number(product.price ?? 0),
+    rating: Number(product.rating ?? 0),
+    reviews: Number(product.reviews ?? 0),
+    sold: Number(product.sold ?? 0),
+    imageUrl: String(
+      product.imageUrl ??
+      product.image ??
+      product.imageURL ??
+      product.thumbnail ??
+      product.photoUrl ??
+      ''
+    ),
+    category: typeof product.category === 'string' ? product.category : undefined,
+    description: typeof product.description === 'string' ? product.description : undefined,
+    sizes: Array.isArray(product.sizes) ? product.sizes.filter((size): size is string => typeof size === 'string') : undefined,
+    colors: Array.isArray(product.colors) ? product.colors.filter((color): color is string => typeof color === 'string') : undefined
+  });
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -90,7 +99,7 @@ export default function ShoppingPage({ category, searchQuery, setCategory, onPro
         if (searchQuery) {
           fetched = fetched.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
         }
-        setProducts(fetched.length > 0 ? fetched : generateProducts(searchQuery || category, 12));
+        setProducts(fetched.map(normalizeProduct).filter(product => product.id && product.name && product.imageUrl));
       } finally {
         setLoading(false);
       }
@@ -248,16 +257,24 @@ export default function ShoppingPage({ category, searchQuery, setCategory, onPro
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-x-6 md:gap-y-10 w-full pb-10">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} category={category} onClick={() => onProductClick?.(product)} />
-                  ))}
-                </div>
-                <div className="flex justify-center mt-10 w-full">
-                  <button className="border border-gray-300 text-black px-12 py-3 text-sm font-semibold hover:border-black transition-colors rounded-sm">
-                    Load More Products
-                  </button>
-                </div>
+                {products.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-x-6 md:gap-y-10 w-full pb-10">
+                      {products.map((product) => (
+                        <ProductCard key={product.id} product={product} category={product.category || category} onClick={() => onProductClick?.(product)} />
+                      ))}
+                    </div>
+                    <div className="flex justify-center mt-10 w-full">
+                      <button className="border border-gray-300 text-black px-12 py-3 text-sm font-semibold hover:border-black transition-colors rounded-sm">
+                        Load More Products
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-20 text-center text-gray-500">
+                    No products found in Firestore for this category.
+                  </div>
+                )}
               </>
             )}
           </div>
