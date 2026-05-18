@@ -4,12 +4,40 @@ import { Product } from '../shopping/ShoppingPage';
 import { getProducts, addProduct, updateProduct, deleteProduct } from '../../services/productService';
 import { seedProducts } from '../../services/seedService';
 
+const ALL_CATEGORIES = [
+  'Women',
+  'Women Clothing',
+  'Men',
+  'Men clothing',
+  'Kids',
+  'New In',
+  'Sale',
+  'Just for You',
+  'Beachwear',
+  'Curve',
+  'Shoes',
+  'Jewelry & Accessories',
+  'Underwear & Sleepwear',
+  'Baby & Maternity',
+  'Bags & Luggage',
+  'Home & Living',
+  'Beauty & Health',
+  'Sports & Outdoors',
+  'Home Textiles',
+  'Tools & Home Improvement',
+  'Pet Supplies',
+  'Tops',
+  'Bottoms',
+  'Dresses',
+  'Accessories',
+];
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState<Omit<Product, 'id'>>({
     name: '',
     price: 0,
@@ -22,6 +50,9 @@ export default function AdminProductsPage() {
     sizes: [],
     colors: []
   });
+
+  const [sizesInput, setSizesInput] = useState('');
+  const [colorsInput, setColorsInput] = useState('');
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -36,6 +67,8 @@ export default function AdminProductsPage() {
 
   const openAddModal = () => {
     setFormData({ name: '', price: 0, rating: 5, reviews: 0, sold: 0, imageUrl: '', category: 'Tops', description: '', sizes: [], colors: [] });
+    setSizesInput('');
+    setColorsInput('');
     setEditingId(null);
     setIsModalOpen(true);
   };
@@ -53,41 +86,34 @@ export default function AdminProductsPage() {
       sizes: p.sizes || [],
       colors: p.colors || []
     });
+    setSizesInput((p.sizes || []).join(', '));
+    setColorsInput((p.colors || []).join(', '));
     setEditingId(p.id);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const dataToSave = {
+      ...formData,
+      sizes: sizesInput.split(',').map(s => s.trim()).filter(Boolean),
+      colors: colorsInput.split(',').map(s => s.trim()).filter(Boolean),
+    };
     if (editingId) {
-      await updateProduct(editingId, formData);
+      await updateProduct(editingId, dataToSave);
     } else {
-      await addProduct(formData);
+      await addProduct(dataToSave);
     }
     setIsModalOpen(false);
     fetchProducts();
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      await deleteProduct(id);
-      fetchProducts();
-    }
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    if (name === 'sizes' || name === 'colors') {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value.split(',').map(s => s.trim()).filter(Boolean)
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: name === 'price' || name === 'rating' || name === 'reviews' || name === 'sold' ? Number(value) : value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'price' || name === 'rating' || name === 'reviews' || name === 'sold' ? Number(value) : value
+    }));
   };
 
   const handleSeed = async () => {
@@ -109,7 +135,7 @@ export default function AdminProductsPage() {
           <button onClick={fetchProducts} className="bg-gray-200 p-2 rounded hover:bg-gray-300 transition-colors" title="Refresh">
             <RefreshCw className="w-5 h-5 text-gray-700" />
           </button>
-          <button 
+          <button
             onClick={openAddModal}
             className="bg-black text-white px-4 py-2 rounded font-semibold flex items-center gap-2 hover:bg-gray-800 transition-colors"
           >
@@ -149,8 +175,8 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4">{p.category || 'N/A'}</td>
                       <td className="px-6 py-4 font-semibold text-black">${p.price}</td>
                       <td className="px-6 py-4 space-y-1 text-xs">
-                         <div className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full inline-block mr-1">⭐ {p.rating}</div>
-                         <div className="text-gray-500">{p.sold} sold</div>
+                        <div className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full inline-block mr-1">⭐ {p.rating}</div>
+                        <div className="text-gray-500">{p.sold} sold</div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button onClick={() => openEditModal(p)} className="text-blue-600 hover:bg-blue-50 p-2 rounded mr-2 transition-colors">
@@ -176,13 +202,13 @@ export default function AdminProductsPage() {
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-xl font-bold mb-6">{editingId ? 'Edit Product' : 'Add Product'}</h3>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold mb-1">Product Name</label>
                 <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition" />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold mb-1">Description</label>
                 <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition"></textarea>
@@ -196,11 +222,9 @@ export default function AdminProductsPage() {
                 <div>
                   <label className="block text-sm font-semibold mb-1">Category</label>
                   <select name="category" value={formData.category} onChange={handleChange} className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition bg-white">
-                    <option value="Tops">Tops</option>
-                    <option value="Bottoms">Bottoms</option>
-                    <option value="Dresses">Dresses</option>
-                    <option value="Shoes">Shoes</option>
-                    <option value="Accessories">Accessories</option>
+                    {ALL_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -208,11 +232,23 @@ export default function AdminProductsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-1">Sizes (comma-separated)</label>
-                  <input type="text" name="sizes" value={formData.sizes?.join(', ')} onChange={handleChange} placeholder="S, M, L, XL" className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition" />
+                  <input
+                    type="text"
+                    value={sizesInput}
+                    onChange={e => setSizesInput(e.target.value)}
+                    placeholder="S, M, L, XL"
+                    className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">Colors (comma-separated)</label>
-                  <input type="text" name="colors" value={formData.colors?.join(', ')} onChange={handleChange} placeholder="Red, Blue, Black" className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition" />
+                  <input
+                    type="text"
+                    value={colorsInput}
+                    onChange={e => setColorsInput(e.target.value)}
+                    placeholder="Red, Blue, Black"
+                    className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition"
+                  />
                 </div>
               </div>
 
@@ -230,7 +266,7 @@ export default function AdminProductsPage() {
                   <input required type="number" name="sold" value={formData.sold} onChange={handleChange} min="0" className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition" />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold mb-1">Image URL</label>
                 <input required type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-black outline-none transition" />
@@ -238,7 +274,7 @@ export default function AdminProductsPage() {
                   <img src={formData.imageUrl} alt="Preview" className="mt-2 w-full h-32 object-cover rounded shadow-sm border border-gray-200" />
                 )}
               </div>
-              
+
               <button type="submit" className="w-full bg-black text-white py-3 border border-transparent rounded font-bold hover:bg-gray-800 transition shadow-md">
                 {editingId ? 'Save Changes' : 'Create Product'}
               </button>
@@ -248,4 +284,11 @@ export default function AdminProductsPage() {
       )}
     </div>
   );
+
+  async function handleDelete(id: string) {
+    if (confirm('Are you sure you want to delete this product?')) {
+      await deleteProduct(id);
+      fetchProducts();
+    }
+  }
 }
