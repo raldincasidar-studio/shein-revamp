@@ -180,21 +180,21 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
     <div className="flex-1 flex flex-col font-sans w-full bg-gray-50 xl:h-[calc(100vh-120px)] xl:overflow-hidden">
       {/* Header */}
       <header className="bg-black h-16 px-4 flex items-center justify-between shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <button onClick={onBack} className="p-2 -ml-2 text-white hover:bg-white/10 rounded-full transition-colors">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <div className="flex items-center gap-2 text-white">
+          <div className="flex items-center gap-2 text-white min-w-0">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
               <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
             </svg>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-bold tracking-tight">Virtual Mix & Match Closet</h1>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-bold tracking-tight truncate">Virtual Mix & Match Closet</h1>
               <p className="text-[10px] text-gray-400 font-medium tracking-wide">Mix & Match Your Style</p>
             </div>
           </div>
         </div>
-        <div className="text-2xl font-black tracking-widest uppercase text-white">
+        <div className="text-lg sm:text-2xl font-black tracking-widest uppercase text-white">
           SHEIN
         </div>
       </header>
@@ -203,15 +203,15 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
       <div className="flex-1 flex flex-col xl:flex-row w-full xl:h-full xl:min-h-0 xl:overflow-hidden">
 
         {/* Left Sidebar - All Products as Closet */}
-        <div className="w-full xl:w-[350px] bg-white border-b xl:border-b-0 xl:border-r border-gray-200 flex flex-col shrink-0 h-[360px] xl:h-full z-20">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2">
+        <div className="w-full xl:w-[350px] bg-white border-b xl:border-b-0 xl:border-r border-gray-200 flex flex-col shrink-0 h-[42vh] min-h-[340px] xl:h-full z-20">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
+            <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 min-w-0">
               My Closet
               {!loadingProducts && (
                 <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{allProducts.length}</span>
               )}
             </h2>
-            <button className="bg-black text-white px-3 py-1.5 rounded text-sm font-bold flex items-center gap-1 hover:bg-gray-800">
+            <button className="bg-black text-white px-3 py-1.5 rounded text-xs sm:text-sm font-bold flex items-center gap-1 hover:bg-gray-800 shrink-0">
               <Plus className="w-4 h-4" /> Add Item
             </button>
           </div>
@@ -244,7 +244,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
               ))}
             </div>
 
-            <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
+            <div className="flex justify-between items-center text-xs text-gray-500 font-medium gap-3">
               <span>{loadingProducts ? '...' : `${filteredItems.length} items`}</span>
               <div className="relative">
                 <select
@@ -268,7 +268,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
                 <p className="text-sm text-gray-400 font-medium">Loading items...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 pb-8">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-3 pb-8">
                 {filteredItems.map(item => (
                   <div
                     key={item.id}
@@ -307,10 +307,10 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
         </div>
 
         {/* Center - Mix & Match Studio */}
-        <div className="flex-1 flex flex-col relative min-h-[500px] xl:h-full overflow-hidden bg-[#fafafa]">
-          <div className="h-14 bg-white border-b border-gray-200 flex justify-between items-center px-4 shrink-0 shadow-sm z-10 relative">
-            <h2 className="text-lg font-bold text-gray-800">Mix & Match Studio</h2>
-            <div className="flex items-center gap-2">
+        <div className="flex-1 flex flex-col relative min-h-[100vw] sm:min-h-[70vh] xl:h-full overflow-hidden bg-[#fafafa] w-full xl:w-auto">
+          <div className="h-auto sm:h-14 bg-white border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-3 sm:py-0 gap-3 shrink-0 shadow-sm z-10 relative">
+            <h2 className="text-base sm:text-lg font-bold text-gray-800">Mix & Match Studio</h2>
+            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
               <button onClick={clearCanvas} className="text-xs font-bold border border-gray-300 bg-white text-gray-700 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-gray-50 transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> Clear
               </button>
@@ -325,19 +325,19 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
 
           <div
             ref={containerRef}
-            className="flex-1 relative overflow-hidden"
+            className="flex-1 relative overflow-hidden min-h-[60vh] sm:min-h-[65vh] xl:min-h-0"
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
             onDrop={handleDrop}
           >
             {canvasItems.length === 0 && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 select-none pointer-events-none p-4 text-center">
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-gray-300">
                     <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
                   </svg>
                 </div>
-                <p className="text-lg font-medium">Drag or tap items to create your outfit</p>
-                <p className="text-sm mt-1">Mix and match from your closet on the left</p>
+                <p className="text-base sm:text-lg font-medium max-w-xs">Drag or tap items to create your outfit</p>
+                <p className="text-xs sm:text-sm mt-1 max-w-xs">Mix and match from your closet below</p>
               </div>
             )}
 
@@ -352,7 +352,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
                 initial={{ x: item.x, y: item.y, scale: 0 }}
                 animate={{ scale: 1 }}
                 style={{ zIndex: item.zIndex }}
-                className="absolute w-32 h-32 cursor-move group hover:ring-2 ring-[#7D29A8] ring-offset-2 rounded shadow-lg bg-transparent"
+                className="absolute w-28 h-28 sm:w-32 sm:h-32 cursor-move group hover:ring-2 ring-[#7D29A8] ring-offset-2 rounded shadow-lg bg-transparent"
               >
                 <img
                   src={item.product.imageUrl}
@@ -369,14 +369,14 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
               </motion.div>
             ))}
 
-            <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end select-none pointer-events-none">
-              <div>
-                <p className="font-bold text-gray-800">Items in outfit: {canvasItems.length}</p>
-                <p className="text-xs text-gray-500">Click items or drag them to reposition</p>
+            <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-end select-none pointer-events-none">
+              <div className="bg-white/90 backdrop-blur px-3 py-2 rounded-lg shadow-sm pointer-events-none">
+                <p className="font-bold text-gray-800 text-sm sm:text-base">Items in outfit: {canvasItems.length}</p>
+                <p className="text-[11px] sm:text-xs text-gray-500">Click items or drag to reposition</p>
               </div>
               {canvasItems.length > 0 && (
                 <button
-                  className="pointer-events-auto bg-black text-white px-6 py-3 rounded shadow-xl font-bold uppercase tracking-wider text-sm hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="pointer-events-auto bg-black text-white px-4 sm:px-6 py-3 rounded-lg shadow-xl font-bold uppercase tracking-wider text-xs sm:text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
                   onClick={handleCheckoutAll}
                   disabled={checkingOut}
                 >
@@ -395,10 +395,10 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
         </div>
 
         {/* Right Sidebar - Saved Outfits (hearted/closet items) */}
-        <div className="w-full xl:w-[280px] bg-white xl:border-l border-t xl:border-t-0 border-gray-200 flex flex-col shrink-0 flex-1 xl:flex-none self-stretch min-h-[500px] xl:min-h-0">
-          <div className="p-6 border-b border-gray-100 shrink-0 flex items-center justify-between">
+        <div className="w-full xl:w-[280px] bg-white xl:border-l border-t xl:border-t-0 border-gray-200 flex flex-col shrink-0 flex-1 xl:flex-none self-stretch min-h-[280px] sm:min-h-[320px] xl:min-h-0">
+          <div className="p-4 sm:p-6 border-b border-gray-100 shrink-0 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
                 <Heart className="w-5 h-5 text-red-500 fill-red-500" />
                 Saved Items
               </h2>
@@ -408,7 +408,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4">
             {loadingSaved ? (
               <div className="flex flex-col items-center justify-center h-40 gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -421,7 +421,7 @@ export default function VirtualClosetPage({ onBack, onAddToCart, user }: Virtual
                 <p className="text-xs mt-1">Heart products to save them here</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {savedItems.map(item => (
                   <div
                     key={item.productId}
