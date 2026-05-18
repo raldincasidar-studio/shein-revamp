@@ -1,98 +1,81 @@
-import React, { useState, useRef } from 'react';
-import { ArrowLeft, Plus, Search, Trash2, Share2, Download, Filter } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ArrowLeft, Plus, Search, Trash2, Share2, Download, Filter, Loader2, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
+import { User } from 'firebase/auth';
 import { Product } from './ShoppingPage';
+import { getProducts } from '../../services/productService';
+import { getClosetItems, ClosetItem as FirestoreClosetItem } from '../../services/closetService';
 
 interface VirtualClosetPageProps {
   onBack: () => void;
   onAddToCart?: (products: Product[]) => void;
+  user?: User | null;
 }
 
 interface ClosetItem extends Product {
-  categoryType: 'Tops' | 'Bottoms' | 'Dresses' | 'Shoes';
+  categoryType: 'Tops' | 'Bottoms' | 'Dresses' | 'Shoes' | 'Other';
 }
 
 interface CanvasItem {
-  id: string; // unique instance id
+  id: string;
   product: ClosetItem;
   x: number;
   y: number;
   zIndex: number;
 }
 
-export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualClosetPageProps) {
-  const [activeCategory, setActiveCategory] = useState<'All' | 'Tops' | 'Bottoms' | 'Dresses' | 'Shoes'>('All');
+function inferCategoryType(category?: string): ClosetItem['categoryType'] {
+  if (!category) return 'Other';
+  const c = category.toLowerCase();
+  if (c.includes('top') || c.includes('shirt') || c.includes('blouse') || c.includes('sweater') || c.includes('jacket') || c.includes('coat') || c.includes('hoodie') || c.includes('outerwear')) return 'Tops';
+  if (c.includes('bottom') || c.includes('pant') || c.includes('jean') || c.includes('skirt') || c.includes('short') || c.includes('denim')) return 'Bottoms';
+  if (c.includes('dress') || c.includes('gown') || c.includes('jumpsuit') || c.includes('romper')) return 'Dresses';
+  if (c.includes('shoe') || c.includes('sneaker') || c.includes('boot') || c.includes('heel') || c.includes('sandal') || c.includes('footwear')) return 'Shoes';
+  return 'Other';
+}
+
+export default function VirtualClosetPage({ onBack, onAddToCart, user }: VirtualClosetPageProps) {
+  const [activeCategory, setActiveCategory] = useState<'All' | 'Tops' | 'Bottoms' | 'Dresses' | 'Shoes' | 'Other'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('Default');
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
   const [maxZIndex, setMaxZIndex] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sample closet items
-  const closetItems: ClosetItem[] = [
-    {
-      id: 'c1',
-      name: 'KRYTIVO Duck Pattern Top',
-      price: 250,
-      rating: 4.8,
-      reviews: 120,
-      sold: 500,
-      imageUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400&h=400&auto=format&fit=crop',
-      categoryType: 'Tops'
-    },
-    {
-      id: 'c2',
-      name: 'Men Stripe Print Casual',
-      price: 320,
-      rating: 4.5,
-      reviews: 80,
-      sold: 300,
-      imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=400&h=400&auto=format&fit=crop',
-      categoryType: 'Tops'
-    },
-    {
-      id: 'c3',
-      name: 'NEOREFINED Men Suit',
-      price: 450,
-      rating: 4.9,
-      reviews: 200,
-      sold: 1000,
-      imageUrl: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?q=80&w=400&h=400&auto=format&fit=crop',
-      categoryType: 'Tops'
-    },
-    {
-      id: 'c4',
-      name: 'AKNOTIC Men Casual Pants',
-      price: 550,
-      rating: 4.6,
-      reviews: 150,
-      sold: 600,
-      imageUrl: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=400&h=400&auto=format&fit=crop',
-      categoryType: 'Bottoms'
-    },
-    {
-      id: 'c5',
-      name: 'MOLCRASH 1pc Pants',
-      price: 600,
-      rating: 4.7,
-      reviews: 90,
-      sold: 400,
-      imageUrl: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=400&h=400&auto=format&fit=crop',
-      categoryType: 'Bottoms'
-    },
-    {
-      id: 'c6',
-      name: 'Stylish White Sneakers',
-      price: 800,
-      rating: 4.8,
-      reviews: 300,
-      sold: 1200,
-      imageUrl: 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=400&h=400&auto=format&fit=crop',
-      categoryType: 'Shoes'
-    }
-  ];
+  const [allProducts, setAllProducts] = useState<ClosetItem[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
-  const filteredItems = closetItems.filter(item => {
+  const [savedItems, setSavedItems] = useState<FirestoreClosetItem[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(true);
+
+  useEffect(() => {
+    getProducts()
+      .then(products => {
+        setAllProducts(
+          products
+            .filter(p => p.id && p.name && p.imageUrl)
+            .map(p => ({
+              ...p,
+              categoryType: inferCategoryType(p.category)
+            }))
+        );
+      })
+      .catch(err => console.error('Failed to load products', err))
+      .finally(() => setLoadingProducts(false));
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setLoadingSaved(false);
+      return;
+    }
+    getClosetItems(user.uid)
+      .then(setSavedItems)
+      .catch(err => console.error('Failed to load closet items', err))
+      .finally(() => setLoadingSaved(false));
+  }, [user]);
+
+  const filteredItems = allProducts.filter(item => {
     if (activeCategory !== 'All' && item.categoryType !== activeCategory) return false;
     if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
@@ -114,10 +97,8 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
       const item = JSON.parse(data) as ClosetItem;
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
-        // Calculate drop position relative to the container
-        const x = e.clientX - rect.left - 50; // offset center roughly
+        const x = e.clientX - rect.left - 50;
         const y = e.clientY - rect.top - 50;
-        
         setMaxZIndex(prev => {
           const nextZ = prev + 1;
           const newItem: CanvasItem = {
@@ -134,33 +115,43 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
     }
   };
 
-  const clearCanvas = () => {
-    setCanvasItems([]);
+  const addToCanvas = (item: ClosetItem) => {
+    const newZ = maxZIndex + 1;
+    const newItem: CanvasItem = {
+      id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      product: item,
+      x: 80 + Math.random() * 60,
+      y: 80 + Math.random() * 60,
+      zIndex: newZ
+    };
+    setMaxZIndex(newZ);
+    setCanvasItems(prev => [...prev, newItem]);
   };
+
+  const clearCanvas = () => setCanvasItems([]);
 
   const removeCanvasItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setCanvasItems(canvasItems.filter(item => item.id !== id));
+    setCanvasItems(prev => prev.filter(item => item.id !== id));
   };
 
   const updateItemZIndex = (id: string) => {
-    setCanvasItems(items => items.map(item => {
-      if (item.id === id) {
-        setMaxZIndex(maxZIndex + 1);
-        return { ...item, zIndex: maxZIndex + 1 };
-      }
-      return item;
-    }));
+    const newZ = maxZIndex + 1;
+    setMaxZIndex(newZ);
+    setCanvasItems(items => items.map(item =>
+      item.id === id ? { ...item, zIndex: newZ } : item
+    ));
   };
 
   const handleCheckoutAll = () => {
     if (onAddToCart) {
-      // Get unique products
       const products = Array.from(new Set(canvasItems.map(i => i.product.id)))
         .map(id => canvasItems.find(i => i.product.id === id)!.product);
       onAddToCart(products);
     }
   };
+
+  const categories = ['All', 'Tops', 'Bottoms', 'Dresses', 'Shoes', 'Other'] as const;
 
   return (
     <div className="flex-1 flex flex-col font-sans w-full bg-gray-50 xl:h-full xl:overflow-hidden">
@@ -187,36 +178,41 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
 
       {/* Main Layout */}
       <div className="flex-1 flex flex-col xl:flex-row w-full xl:h-full xl:min-h-0 xl:overflow-hidden">
-        
-        {/* Left Sidebar - My Closet */}
-        <div className="w-full xl:w-[350px] bg-white border-b xl:border-b-0 xl:border-r border-gray-200 flex flex-col shrink-0 h-[300px] xl:h-full z-20">
+
+        {/* Left Sidebar - All Products as Closet */}
+        <div className="w-full xl:w-[350px] bg-white border-b xl:border-b-0 xl:border-r border-gray-200 flex flex-col shrink-0 h-[360px] xl:h-full z-20">
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2">My Closet</h2>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              My Closet
+              {!loadingProducts && (
+                <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{allProducts.length}</span>
+              )}
+            </h2>
             <button className="bg-black text-white px-3 py-1.5 rounded text-sm font-bold flex items-center gap-1 hover:bg-gray-800">
               <Plus className="w-4 h-4" /> Add Item
             </button>
           </div>
-          
-          <div className="p-4 border-b border-gray-100 space-y-4 shadow-sm relative z-10">
+
+          <div className="p-4 border-b border-gray-100 space-y-3 shadow-sm relative z-10">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search Your Closet" 
+              <input
+                type="text"
+                placeholder="Search closet..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-full text-sm outline-none focus:border-black"
               />
             </div>
-            
-            <div className="flex flex-wrap gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {(['All', 'Tops', 'Bottoms', 'Dresses', 'Shoes'] as const).map(cat => (
+
+            <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {categories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
-                    activeCategory === cat 
-                      ? 'bg-black text-white border-black' 
+                  className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
+                    activeCategory === cat
+                      ? 'bg-black text-white border-black'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                   }`}
                 >
@@ -224,11 +220,11 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
                 </button>
               ))}
             </div>
-            
+
             <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
-              <span>{filteredItems.length} items</span>
+              <span>{loadingProducts ? '...' : `${filteredItems.length} items`}</span>
               <div className="relative">
-                <select 
+                <select
                   className="appearance-none bg-white border border-gray-300 hover:border-gray-400 pl-2 pr-6 py-1 rounded shadow-sm text-xs font-semibold text-gray-700 outline-none cursor-pointer"
                   onChange={(e) => setSortBy(e.target.value)}
                   value={sortBy}
@@ -241,48 +237,54 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4 relative">
-            <div className="grid grid-cols-2 gap-3 pb-8">
-              {filteredItems.map(item => (
-                <div 
-                  key={item.id} 
-                  className="group relative cursor-grab active:cursor-grabbing border-2 border-transparent hover:border-gray-200 rounded-lg p-1 transition-colors"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, item)}
-                  onClick={() => {
-                    // Click-to-add for mobile or quick adding
-                    const newItem: CanvasItem = {
-                      id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                      product: item,
-                      x: 100 + Math.random() * 50,
-                      y: 100 + Math.random() * 50,
-                      zIndex: maxZIndex + 1
-                    };
-                    setMaxZIndex(maxZIndex + 1);
-                    setCanvasItems([...canvasItems, newItem]);
-                  }}
-                >
-                  <div className="aspect-square bg-gray-100 rounded overflow-hidden relative shadow-sm">
-                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" draggable={false} />
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
-                      <p className="text-white text-[9px] font-medium truncate">{item.name}</p>
+            {loadingProducts ? (
+              <div className="flex flex-col items-center justify-center h-full gap-3 py-12">
+                <Loader2 className="w-7 h-7 animate-spin text-gray-400" />
+                <p className="text-sm text-gray-400 font-medium">Loading items...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 pb-8">
+                {filteredItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="group relative cursor-grab active:cursor-grabbing border-2 border-transparent hover:border-gray-300 rounded-lg p-1 transition-colors"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item)}
+                    onClick={() => addToCanvas(item)}
+                  >
+                    <div className="aspect-square bg-gray-100 rounded overflow-hidden relative shadow-sm">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        draggable={false}
+                      />
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
+                        <p className="text-white text-[9px] font-medium truncate">{item.name}</p>
+                        <p className="text-white/70 text-[8px]">₱{item.price}</p>
+                      </div>
+                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-white/90 text-[8px] font-bold text-gray-700 px-1.5 py-0.5 rounded-full shadow">
+                          + Add
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {filteredItems.length === 0 && (
-                <div className="col-span-2 text-center text-gray-500 py-10 text-sm">
-                  No items found.
-                </div>
-              )}
-            </div>
+                ))}
+                {filteredItems.length === 0 && !loadingProducts && (
+                  <div className="col-span-2 text-center text-gray-400 py-10 text-sm">
+                    No items found.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Center - Mix & Match Studio (Canvas) */}
-        <div className="flex-1 flex flex-col relative min-h-[500px] xl:h-full overflow-hidden bg-[#fafafa]">
-          {/* Toolbar */}
+        {/* Center - Mix & Match Studio */}
+        <div className="flex-1 flex flex-col relative min-h-[600px] xl:h-full overflow-hidden bg-[#fafafa]">
           <div className="h-14 bg-white border-b border-gray-200 flex justify-between items-center px-4 shrink-0 shadow-sm z-10 relative">
             <h2 className="text-lg font-bold text-gray-800">Mix & Match Studio</h2>
             <div className="flex items-center gap-2">
@@ -298,20 +300,24 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
             </div>
           </div>
 
-          {/* Canvas Area */}
-          <div 
+          <div
             ref={containerRef}
             className="flex-1 relative overflow-hidden"
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
             onDrop={handleDrop}
           >
-              {canvasItems.length === 0 && (
+            {canvasItems.length === 0 && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 select-none pointer-events-none p-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-gray-300">
+                    <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
+                  </svg>
+                </div>
                 <p className="text-lg font-medium">Drag or tap items to create your outfit</p>
-                <p className="text-sm">Mix and match from your closet</p>
+                <p className="text-sm mt-1">Mix and match from your closet on the left</p>
               </div>
             )}
-            
+
             {canvasItems.map(item => (
               <motion.div
                 key={item.id}
@@ -325,14 +331,12 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
                 style={{ zIndex: item.zIndex }}
                 className="absolute w-32 h-32 cursor-move group hover:ring-2 ring-[#7D29A8] ring-offset-2 rounded shadow-lg bg-transparent"
               >
-                <img 
-                  src={item.product.imageUrl} 
-                  alt={item.product.name} 
-                  className="w-full h-full object-contain drop-shadow-xl pointer-events-none" 
+                <img
+                  src={item.product.imageUrl}
+                  alt={item.product.name}
+                  className="w-full h-full object-contain drop-shadow-xl pointer-events-none"
                 />
-                
-                {/* Delete button (visible on hover) */}
-                <button 
+                <button
                   onClick={(e) => removeCanvasItem(item.id, e)}
                   className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                 >
@@ -341,35 +345,94 @@ export default function VirtualClosetPage({ onBack, onAddToCart }: VirtualCloset
                 </button>
               </motion.div>
             ))}
-            
-            {/* Status footer inside canvas */}
+
             <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end select-none pointer-events-none">
               <div>
                 <p className="font-bold text-gray-800">Items in outfit: {canvasItems.length}</p>
-                <p className="text-xs text-gray-500">Click and drag items to reposition</p>
+                <p className="text-xs text-gray-500">Click items or drag them to reposition</p>
               </div>
-              
               {canvasItems.length > 0 && (
-                 <button 
-                   className="pointer-events-auto bg-black text-white px-6 py-3 rounded shadow-xl font-bold uppercase tracking-wider text-sm hover:bg-gray-800 transition-colors"
-                   onClick={handleCheckoutAll}
-                 >
-                   Checkout All Selection
-                 </button>
+                <button
+                  className="pointer-events-auto bg-black text-white px-6 py-3 rounded shadow-xl font-bold uppercase tracking-wider text-sm hover:bg-gray-800 transition-colors"
+                  onClick={handleCheckoutAll}
+                >
+                  Checkout All Selection
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar - Saved Outfits (Hidden on mobile, or could be a drawer) */}
-        <div className="w-full xl:w-[280px] bg-white xl:border-l border-t xl:border-t-0 border-gray-200 flex flex-col shrink-0 flex-1 xl:flex-none self-stretch">
-          <div className="p-6 border-b border-gray-100 shrink-0">
-            <h2 className="text-xl font-bold">Saved Outfits</h2>
-            <p className="text-sm text-gray-500">0 outfit saved</p>
+        {/* Right Sidebar - Saved Outfits (hearted/closet items) */}
+        <div className="w-full xl:w-[280px] bg-white xl:border-l border-t xl:border-t-0 border-gray-200 flex flex-col shrink-0 flex-1 xl:flex-none self-stretch min-h-[500px] xl:min-h-0">
+          <div className="p-6 border-b border-gray-100 shrink-0 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+                Saved Items
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {loadingSaved ? 'Loading...' : `${savedItems.length} item${savedItems.length !== 1 ? 's' : ''} saved`}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-gray-400 min-h-[150px]">
-            <p>No saved outfits yet</p>
-            <p>Create and save your first outfit!</p>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            {loadingSaved ? (
+              <div className="flex flex-col items-center justify-center h-40 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                <p className="text-sm text-gray-400">Loading saved items...</p>
+              </div>
+            ) : savedItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-center text-gray-400 px-4">
+                <Heart className="w-10 h-10 text-gray-200 mb-3" />
+                <p className="font-medium text-sm">No saved items yet</p>
+                <p className="text-xs mt-1">Heart products to save them here</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {savedItems.map(item => (
+                  <div
+                    key={item.productId}
+                    className="group relative cursor-pointer border-2 border-transparent hover:border-red-200 rounded-lg p-1 transition-colors"
+                    onClick={() => {
+                      const closetItem: ClosetItem = {
+                        id: item.productId,
+                        name: item.productName,
+                        price: item.price,
+                        rating: 0,
+                        reviews: 0,
+                        sold: 0,
+                        imageUrl: item.productImage,
+                        category: item.category,
+                        categoryType: inferCategoryType(item.category)
+                      };
+                      addToCanvas(closetItem);
+                    }}
+                  >
+                    <div className="aspect-square bg-gray-100 rounded overflow-hidden relative shadow-sm">
+                      <img
+                        src={item.productImage}
+                        alt={item.productName}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute top-1 left-1">
+                        <Heart className="w-3 h-3 fill-red-500 text-red-500 drop-shadow" />
+                      </div>
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-5">
+                        <p className="text-white text-[9px] font-medium truncate">{item.productName}</p>
+                        <p className="text-white/70 text-[8px]">₱{item.price}</p>
+                      </div>
+                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-white/90 text-[8px] font-bold text-gray-700 px-1.5 py-0.5 rounded-full shadow">
+                          + Mix
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

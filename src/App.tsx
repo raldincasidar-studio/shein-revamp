@@ -173,6 +173,7 @@ export default function App() {
                    setCurrentPage('cart');
                    window.scrollTo(0, 0);
                 }}
+                user={user}
              />
           ) : currentPage === 'admin' ? (
              <AdminProductsPage />
