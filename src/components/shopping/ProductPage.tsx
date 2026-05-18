@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { ChevronRight, Heart, Minus, Plus, Share2, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronRight, Heart, Minus, Plus, Share2, Star, Loader2 } from 'lucide-react';
 import ProductCard from './ProductCard';
-import { Product } from './ShoppingPage'; // Note: I should be careful if ShoppingPage exports it. Just use the one imported here.
+import { Product } from './ShoppingPage'; 
+import { getRelatedProducts } from '../../services/productService';
 
 interface ProductPageProps {
   product: Product;
@@ -14,6 +15,23 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(true);
+
+  useEffect(() => {
+    const fetchRelated = async () => {
+      setIsLoadingRelated(true);
+      try {
+        const products = await getRelatedProducts(5);
+        setRelatedProducts(products);
+      } catch (error) {
+        console.error('Failed to fetch related products', error);
+      } finally {
+        setIsLoadingRelated(false);
+      }
+    };
+    fetchRelated();
+  }, []);
 
   // Use product colors if available, otherwise mock
   const colors = product.colors && product.colors.length > 0
@@ -41,13 +59,7 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
         <div className="flex flex-wrap items-center text-[13px] text-gray-500 mb-6 gap-1 md:gap-2">
           <button onClick={onBack} className="hover:underline">Home</button>
           <span>/</span>
-          <button onClick={onBack} className="hover:underline">Women Apparel</button>
-          <span>/</span>
-          <button onClick={onBack} className="hover:underline">Women Clothing</button>
-          <span>/</span>
-          <button onClick={onBack} className="hover:underline">Women Tops</button>
-          <span>/</span>
-          <button onClick={onBack} className="hover:underline">Women Tank Tops & Camis</button>
+          <button onClick={onBack} className="hover:underline">{product.category || 'Apparel'}</button>
           <span>/</span>
           <span className="text-gray-900 truncate max-w-[200px] sm:max-w-xs">{product.name}</span>
         </div>
@@ -85,10 +97,12 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
             <div className="flex items-center space-x-4 mb-4">
               <div className="flex items-center space-x-1">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <Star key={i} className={`w-4 h-4 ${i <= 4 ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
+                  <Star key={i} className={`w-4 h-4 ${i <= Math.round(product.rating || 0) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
                 ))}
+                <span className="text-sm font-semibold ml-1">{product.rating ? product.rating.toFixed(1) : 'No Rating'}</span>
               </div>
               <a href="#reviews" className="text-sm text-gray-600 hover:underline">({product.reviews} reviews)</a>
+              <span className="text-sm text-gray-500">• {product.sold} sold</span>
             </div>
 
             <div className="text-3xl font-bold mb-6">
@@ -205,10 +219,10 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
              </div>
              
              <div className="bg-gray-50/50 border border-gray-100 p-6 rounded mb-8">
-               <div className="text-5xl font-bold mb-2">4.85<span className="text-lg text-gray-400 font-normal ml-2">out of 5</span></div>
+               <div className="text-5xl font-bold mb-2">{product.rating ? product.rating.toFixed(2) : '0.00'}<span className="text-lg text-gray-400 font-normal ml-2">out of 5</span></div>
                <div className="flex items-center space-x-1 mb-6">
                  {[1, 2, 3, 4, 5].map(i => (
-                   <Star key={i} className={`w-5 h-5 ${i <= 4 ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
+                   <Star key={i} className={`w-5 h-5 ${i <= Math.round(product.rating || 0) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}`} />
                  ))}
                </div>
 
@@ -326,17 +340,27 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
         {/* Similar Products */}
         <div className="mt-16 w-full">
            <h3 className="text-xl font-bold mb-6">Customers Also Viewed</h3>
-           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-             {/* Mocking generic products by reusing the Product component API */}
-             {Array.from({length: 5}).map((_, i) => (
-                <ProductCard 
-                  key={i} 
-                  product={{...product, id: `related-${i}`}} 
-                  category="Related" 
-                  onClick={() => onProductClick(product)} 
-                />
-             ))}
-           </div>
+           {isLoadingRelated ? (
+             <div className="flex justify-center items-center py-10">
+               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+             </div>
+           ) : relatedProducts.length > 0 ? (
+             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+               {relatedProducts.map((relatedProduct) => (
+                  <ProductCard 
+                    key={relatedProduct.id} 
+                    product={relatedProduct} 
+                    category={relatedProduct.category || "Related"} 
+                    onClick={() => onProductClick(relatedProduct)} 
+                    onTryOnClick={() => onTryOnClick?.()}
+                  />
+               ))}
+             </div>
+           ) : (
+             <div className="text-center py-10 text-gray-500">
+               No products found.
+             </div>
+           )}
         </div>
 
       </div>

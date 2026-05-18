@@ -20,7 +20,7 @@ export interface Product {
 const generateProducts = (category: string, count: number): Product[] => {
   return Array.from({ length: count }).map((_, i) => ({
     id: `${category}-${i}`,
-    name: `Sample Product Pic ${category} ${i + 1}`,
+    name: `${category} Collection Item ${i + 1}`,
     price: 411,
     rating: 5,
     reviews: 527,

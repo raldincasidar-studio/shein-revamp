@@ -1,6 +1,8 @@
-import { ShoppingCart, Star, Heart, Shirt } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingCart, Star, Heart, Shirt, Loader2 } from 'lucide-react';
 import ProductCard from '../shopping/ProductCard';
 import { Product } from '../shopping/ShoppingPage';
+import { getTrendingProducts } from '../../services/productService';
 
 interface DashboardProps {
   onProductClick?: (product: Product) => void;
@@ -8,15 +10,23 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onProductClick, onTryOnClick }: DashboardProps) {
-  const trendingProducts: Product[] = Array.from({ length: 4 }).map((_, i) => ({
-    id: `trending-${i}`,
-    name: `Sample Product Pic Trending ${i + 1}`,
-    price: 411,
-    rating: 5,
-    reviews: 527,
-    sold: 21600,
-    imageUrl: 'https://images.unsplash.com/photo-1589578228447-e1a4e481c6c8?q=80&w=600&auto=format&fit=crop'
-  }));
+  const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
+  const [isLoadingTrending, setIsLoadingTrending] = useState(true);
+
+  useEffect(() => {
+    const fetchTrending = async () => {
+      setIsLoadingTrending(true);
+      try {
+        const products = await getTrendingProducts(4);
+        setTrendingProducts(products);
+      } catch (error) {
+        console.error('Failed to fetch trending products', error);
+      } finally {
+        setIsLoadingTrending(false);
+      }
+    };
+    fetchTrending();
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-white font-sans text-gray-900">
@@ -87,17 +97,27 @@ export default function Dashboard({ onProductClick, onTryOnClick }: DashboardPro
             <h2 className="text-2xl text-gray-900 font-medium">Trending Now</h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {trendingProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                category="Trending"
-                onClick={() => onProductClick?.(product)}
-                onTryOnClick={() => onTryOnClick?.(product)}
-              />
-            ))}
-          </div>
+          {isLoadingTrending ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : trendingProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {trendingProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  category="Trending"
+                  onClick={() => onProductClick?.(product)}
+                  onTryOnClick={() => onTryOnClick?.(product)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-gray-500">
+              No trending products found.
+            </div>
+          )}
         </div>
       </section>
 

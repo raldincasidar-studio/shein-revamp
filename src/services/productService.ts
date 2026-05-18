@@ -21,6 +21,25 @@ function handleFirestoreError(error: unknown, operationType: string, path: strin
 }
 
 // Fetch all products
+export const getTrendingProducts = async (limitCount: number = 4): Promise<Product[]> => {
+  try {
+    const { query, orderBy, limit } = await import('firebase/firestore');
+    const q = query(
+      collection(db, PRODUCTS_COLLECTION),
+      orderBy('sold', 'desc'),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Product[];
+  } catch (error) {
+    handleFirestoreError(error, 'list', PRODUCTS_COLLECTION);
+    return [];
+  }
+};
+
 export const getProducts = async (): Promise<Product[]> => {
   try {
     const querySnapshot = await getDocs(collection(db, PRODUCTS_COLLECTION));
@@ -30,6 +49,24 @@ export const getProducts = async (): Promise<Product[]> => {
     })) as Product[];
   } catch (error) {
     handleFirestoreError(error, 'get', PRODUCTS_COLLECTION);
+    return [];
+  }
+};
+
+export const getRelatedProducts = async (limitCount: number = 5): Promise<Product[]> => {
+  try {
+    const { query, limit } = await import('firebase/firestore');
+    const q = query(
+      collection(db, PRODUCTS_COLLECTION),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Product[];
+  } catch (error) {
+    handleFirestoreError(error, 'list', PRODUCTS_COLLECTION);
     return [];
   }
 };
