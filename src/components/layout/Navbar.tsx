@@ -6,6 +6,7 @@ interface NavbarProps {
   setPage?: (page: 'dashboard' | 'shop' | 'cart' | 'tryon' | 'closet' | 'admin') => void;
   setCategory?: (category: string) => void;
   setSearchQuery?: (query: string) => void;
+  cartCount?: number;
 }
 
 const LOCATIONS = ['Philippines', 'United States', 'United Kingdom', 'Canada', 'Australia'];
@@ -20,7 +21,7 @@ const COL2_CATEGORIES = [
   'Sports & Outdoors', 'Home Textiles', 'Tools & Home Improvement', 'Pet Supplies'
 ];
 
-export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery }: NavbarProps) {
+export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery, cartCount = 0 }: NavbarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLocationMenu, setShowLocationMenu] = useState(false);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
@@ -38,7 +39,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
         setShowProfileMenu(false);
         setShowLocationMenu(false);
         setShowCategoryMenu(false);
-        // keep mobile menu open or closed? usually it's better to close it if they click outside
         setIsMobileMenuOpen(false);
       }
     }
@@ -47,18 +47,37 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const CartBadge = ({ className = '' }: { className?: string }) => (
+    <div className={`relative ${className}`}>
+      <ShoppingCart className="h-5 w-5" />
+      {cartCount > 0 && (
+        <span className="absolute -top-1.5 -right-2 bg-white text-black text-[10px] font-bold px-1 rounded-full border border-black min-w-[16px] text-center">
+          {cartCount > 99 ? '99+' : cartCount}
+        </span>
+      )}
+    </div>
+  );
+
+  const CartBadgeLarge = () => (
+    <div className="relative">
+      <ShoppingCart className="h-6 w-6 mb-1 text-white" />
+      {cartCount > 0 && (
+        <span className="absolute -top-1.5 -right-2 bg-white text-black text-[10px] font-bold px-1 rounded-full border border-black min-w-[16px] text-center">
+          {cartCount > 99 ? '99+' : cartCount}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <nav ref={navRef} className="bg-black text-white w-full sticky top-0 z-50">
-      {/* Top Utility Bar & Logo */}
       <div className="flex flex-wrap md:flex-nowrap items-center justify-between px-4 sm:px-6 py-4">
-        {/* Mobile Menu Button */}
         <div className="flex md:hidden mr-4">
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="hover:text-gray-300">
             {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Left: Location */}
         <div className="hidden md:flex flex-1 items-center space-x-2 text-sm font-medium">
           <div className="relative">
             <button 
@@ -86,7 +105,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
           </div>
         </div>
 
-        {/* Center: Logo */}
         <div className="flex-1 flex justify-center md:justify-center justify-start shrink-0">
           <button 
              onClick={() => {
@@ -99,16 +117,10 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
           </button>
         </div>
 
-        {/* Right: Icons */}
         <div className="flex flex-1 items-center justify-end space-x-4 sm:space-x-6">
           <button onClick={() => setIsSearchOpen(true)} className="hover:text-gray-300 transition-colors"><Search className="h-5 w-5" /></button>
           <button onClick={() => setPage && setPage('cart')} className="hover:text-gray-300 transition-colors hidden sm:block">
-            <div className="relative">
-              <ShoppingCart className="h-5 w-5" />
-              <span className="absolute -top-1.5 -right-2 bg-white text-black text-[10px] font-bold px-1 rounded-full border border-black min-w-[16px] text-center">
-                2
-              </span>
-            </div>
+            <CartBadge />
           </button>
           <button className="hover:text-gray-300 transition-colors hidden md:block"><Heart className="h-5 w-5" /></button>
           <button onClick={() => setPage && setPage('closet')} className="hover:text-gray-300 transition-colors hidden md:block"><Shirt className="h-5 w-5" /></button>
@@ -136,7 +148,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
         </div>
       </div>
 
-      {/* Navigation Links - Desktop */}
       <div className="hidden md:flex justify-center items-center space-x-8 pb-4 text-sm font-semibold tracking-wide relative">
         <div className="relative">
           <button 
@@ -192,10 +203,8 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
         </div>
       )}
 
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-black border-t border-gray-800 absolute w-full left-0 top-full shadow-2xl flex flex-col pt-2 pb-6 z-40">
-           {/* Location Mobile */}
            <div className="px-6 py-4 border-b border-gray-800">
              <p className="text-xs text-gray-400 uppercase tracking-widest mb-3">Settings</p>
              <div className="relative">
@@ -226,7 +235,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
             </div>
            </div>
 
-           {/* Categories Mobile */}
            <div className="px-6 py-4 border-b border-gray-800">
              <p className="text-xs text-gray-400 uppercase tracking-widest mb-3">Shop</p>
              <div className="relative mb-3">
@@ -267,15 +275,9 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
              </div>
            </div>
 
-           {/* Mobile Icons */}
            <div className="px-6 py-5 flex items-center justify-around">
              <button onClick={() => { setIsMobileMenuOpen(false); setPage && setPage('cart'); }} className="flex flex-col items-center hover:text-gray-300 text-gray-400 relative">
-                <div className="relative">
-                  <ShoppingCart className="h-6 w-6 mb-1 text-white" />
-                  <span className="absolute -top-1.5 -right-2 bg-white text-black text-[10px] font-bold px-1 rounded-full border border-black min-w-[16px] text-center">
-                    2
-                  </span>
-                </div>
+                <CartBadgeLarge />
                 <span className="text-xs font-semibold text-white">Cart</span>
              </button>
              <button className="flex flex-col items-center hover:text-gray-300 text-gray-400">
@@ -294,7 +296,6 @@ export default function Navbar({ onSignOut, setPage, setCategory, setSearchQuery
         </div>
       )}
 
-      {/* Search Overlay */}
       {isSearchOpen && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/50">
           <div className="bg-black text-white w-full">

@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail,
   User
 } from 'firebase/auth';
+import { subscribeToCartCount } from './services/cartService';
 
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -24,6 +25,7 @@ import AdminProductsPage from './components/admin/AdminProductsPage';
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [cartCount, setCartCount] = useState(0);
 
   // General App Routing State
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'shop' | 'product' | 'cart' | 'tryon' | 'closet' | 'admin'>('dashboard');
@@ -66,6 +68,15 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setCartCount(0);
+      return;
+    }
+    const unsubscribe = subscribeToCartCount(user.uid, setCartCount);
+    return () => unsubscribe();
+  }, [user]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +162,7 @@ export default function App() {
             setPage={setCurrentPage} 
             setCategory={setCurrentCategory} 
             setSearchQuery={setSearchQuery}
+            cartCount={cartCount}
           />
         )}
         <main className={`flex-grow flex flex-col w-full ${currentPage === 'closet' ? 'xl:overflow-hidden' : ''}`}>
@@ -181,15 +193,20 @@ export default function App() {
                 onBack={() => setCurrentPage('shop')} 
                 onProductClick={handleProductClick}
                 onTryOnClick={() => handleTryOnClick(selectedProduct)}
+                user={user}
              />
           ) : currentPage === 'cart' ? (
-             <CartPage onProductClick={handleProductClick} />
+             <CartPage 
+                onProductClick={handleProductClick}
+                user={user}
+             />
           ) : (
              <ShoppingPage 
                 category={currentCategory} 
                 searchQuery={searchQuery} 
                 setCategory={setCurrentCategory} 
                 onProductClick={handleProductClick}
+                user={user}
              />
           )}
         </main>

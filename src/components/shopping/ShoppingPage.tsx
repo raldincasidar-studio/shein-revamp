@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
+import { User } from 'firebase/auth';
 import ProductCard from './ProductCard';
 import { getProductsByCategories } from '../../services/productService';
 
@@ -22,9 +23,10 @@ interface ShoppingPageProps {
   searchQuery?: string;
   setCategory: (category: string) => void;
   onProductClick?: (product: Product) => void;
+  user?: User | null;
 }
 
-export default function ShoppingPage({ category, searchQuery, setCategory, onProductClick }: ShoppingPageProps) {
+export default function ShoppingPage({ category, searchQuery, setCategory, onProductClick, user }: ShoppingPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -261,7 +263,7 @@ export default function ShoppingPage({ category, searchQuery, setCategory, onPro
                   <>
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-x-6 md:gap-y-10 w-full pb-10">
                       {products.map((product) => (
-                        <ProductCard key={product.id} product={product} category={product.category || category} onClick={() => onProductClick?.(product)} />
+                        <ProductCard key={product.id} product={product} category={product.category || category} onClick={() => onProductClick?.(product)} user={user} />
                       ))}
                     </div>
                     <div className="flex justify-center mt-10 w-full">

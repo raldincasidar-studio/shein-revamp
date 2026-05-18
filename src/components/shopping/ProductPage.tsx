@@ -1,22 +1,33 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, Heart, Minus, Plus, Share2, Star, Loader2 } from 'lucide-react';
+import { ChevronRight, Heart, Minus, Plus, Share2, Star, Loader2, CheckCircle } from 'lucide-react';
+import { User } from 'firebase/auth';
 import ProductCard from './ProductCard';
-import { Product } from './ShoppingPage'; 
+import { Product } from './ShoppingPage';
 import { getRelatedProducts } from '../../services/productService';
+import { addToCart } from '../../services/cartService';
+import { addToCloset, removeFromCloset, isInCloset } from '../../services/closetService';
 
 interface ProductPageProps {
   product: Product;
   onBack: () => void;
   onProductClick: (product: Product) => void;
   onTryOnClick?: () => void;
+  user?: User | null;
+  onCartUpdated?: () => void;
 }
 
-export default function ProductPage({ product, onBack, onProductClick, onTryOnClick }: ProductPageProps) {
+export default function ProductPage({ product, onBack, onProductClick, onTryOnClick, user, onCartUpdated }: ProductPageProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [isLoadingRelated, setIsLoadingRelated] = useState(true);
+
+  const [cartLoading, setCartLoading] = useState(false);
+  const [cartSuccess, setCartSuccess] = useState(false);
+  const [closetLoading, setClosetLoading] = useState(false);
+  const [inCloset, setInCloset] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   useEffect(() => {
     const fetchRelated = async () => {
@@ -33,7 +44,11 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
     fetchRelated();
   }, []);
 
-  // Use product colors if available, otherwise mock
+  useEffect(() => {
+    if (!user) return;
+    isInCloset(user.uid, product.id).then(setInCloset).catch(() => {});
+  }, [user, product.id]);
+
   const colors = product.colors && product.colors.length > 0
     ? product.colors.map((c, i) => ({ name: c, image: product.imageUrl, hot: i === 0 }))
     : [
@@ -43,19 +58,90 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
         { name: 'Red', image: product.imageUrl, hot: false },
       ];
       
-  const sizes = product.sizes && product.sizes.length > 0 
-    ? product.sizes 
+  const sizes = product.sizes && product.sizes.length > 0
+    ? product.sizes
     : ['XS', 'S', 'M', 'L'];
 
   const thumbnails = [
     product.imageUrl, product.imageUrl, product.imageUrl, product.imageUrl, product.imageUrl, product.imageUrl
   ];
 
+  const handleAddToCart = async () => {
+    if (!user) return;
+    setCartLoading(true);
+    try {
+      await addToCart(user.uid, {
+        productId: product.id,
+        productName: product.name,
+        productImage: product.imageUrl,
+        price: product.price,
+        selectedSize: sizes[selectedSize],
+        selectedColor: colors[selectedColor].name,
+        quantity,
+        category: product.category || 'Apparel'
+      });
+      setCartSuccess(true);
+      if (onCartUpdated) onCartUpdated();
+      setTimeout(() => setCartSuccess(false), 2000);
+    } catch (err) {
+      console.error('Add to cart error', err);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleAddToCloset = async () => {
+    if (!user) return;
+    setClosetLoading(true);
+    try {
+      if (inCloset) {
+        await removeFromCloset(user.uid, product.id);
+        setInCloset(false);
+      } else {
+        await addToCloset(user.uid, {
+          productId: product.id,
+          productName: product.name,
+          productImage: product.imageUrl,
+          price: product.price,
+          category: product.category || 'Apparel'
+        });
+        setInCloset(true);
+      }
+    } catch (err) {
+      console.error('Closet error', err);
+    } finally {
+      setClosetLoading(false);
+    }
+  };
+
+  const handleFavHeart = async () => {
+    if (!user) return;
+    setFavLoading(true);
+    try {
+      if (inCloset) {
+        await removeFromCloset(user.uid, product.id);
+        setInCloset(false);
+      } else {
+        await addToCloset(user.uid, {
+          productId: product.id,
+          productName: product.name,
+          productImage: product.imageUrl,
+          price: product.price,
+          category: product.category || 'Apparel'
+        });
+        setInCloset(true);
+      }
+    } catch (err) {
+      console.error('Heart/closet error', err);
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
   return (
     <div className="w-full bg-white font-sans text-gray-900 pb-16">
       <div className="max-w-[1280px] mx-auto px-6 lg:px-8 py-6">
         
-        {/* Breadcrumb */}
         <div className="flex flex-wrap items-center text-[13px] text-gray-500 mb-6 gap-1 md:gap-2">
           <button onClick={onBack} className="hover:underline">Home</button>
           <span>/</span>
@@ -64,10 +150,8 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
           <span className="text-gray-900 truncate max-w-[200px] sm:max-w-xs">{product.name}</span>
         </div>
 
-        {/* Main Product Area */}
         <div className="flex flex-col md:flex-row gap-8 lg:gap-12 w-full mb-12">
           
-          {/* Images */}
           <div className="md:w-1/2 flex gap-4">
              <div className="w-16 hidden sm:flex flex-col gap-3 shrink-0">
                 {thumbnails.map((img, i) => (
@@ -84,7 +168,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
              </div>
           </div>
 
-          {/* Details */}
           <div className="md:w-1/2 flex flex-col pt-2">
             <h1 className="text-xl md:text-2xl font-normal text-gray-900 mb-2 leading-tight">
               {product.name}
@@ -109,7 +192,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
               ₱{product.price}
             </div>
 
-            {/* Colors */}
             <div className="mb-6">
               <div className="flex items-center mb-3">
                  <span className="font-bold mr-2 text-sm">Color:</span>
@@ -133,7 +215,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
               </div>
             </div>
 
-            {/* Sizes */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                  <div>
@@ -155,7 +236,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
               </div>
             </div>
 
-            {/* Quantity */}
             <div className="mb-8 flex items-center gap-4">
                <span className="font-bold text-sm">Qty:</span>
                <div className="flex items-center border border-gray-300 rounded overflow-hidden">
@@ -177,7 +257,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
                </div>
             </div>
 
-            {/* Buttons */}
             <div className="mb-6">
                <button 
                  onClick={onTryOnClick}
@@ -191,25 +270,61 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
                </button>
 
                <div className="flex items-stretch gap-3 h-12">
-                 <button className="flex-1 bg-[#902cae] hover:bg-[#7D29A8] text-white font-bold rounded flex items-center justify-center transition-colors">
-                   ADD TO MY CLOSET
+                 <button
+                   onClick={handleAddToCloset}
+                   disabled={closetLoading}
+                   className={`flex-1 font-bold rounded flex items-center justify-center transition-colors disabled:opacity-70 ${
+                     inCloset
+                       ? 'bg-white border-2 border-[#902cae] text-[#902cae]'
+                       : 'bg-[#902cae] hover:bg-[#7D29A8] text-white'
+                   }`}
+                 >
+                   {closetLoading ? (
+                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                   ) : inCloset ? (
+                     'IN MY CLOSET ✓'
+                   ) : (
+                     'ADD TO MY CLOSET'
+                   )}
                  </button>
-                 <button className="flex-1 bg-black hover:bg-gray-800 text-white font-bold rounded flex items-center justify-center transition-colors">
-                   ADD TO CART
+                 <button
+                   onClick={handleAddToCart}
+                   disabled={cartLoading}
+                   className={`flex-1 font-bold rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-70 ${
+                     cartSuccess ? 'bg-green-600 text-white' : 'bg-black hover:bg-gray-800 text-white'
+                   }`}
+                 >
+                   {cartLoading ? (
+                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                   ) : cartSuccess ? (
+                     <><CheckCircle className="w-4 h-4" /> ADDED!</>
+                   ) : (
+                     'ADD TO CART'
+                   )}
                  </button>
-                 <button className="w-12 border border-gray-300 rounded flex items-center justify-center hover:border-black transition-colors shrink-0">
-                   <Heart className="w-5 h-5 text-gray-700" />
+                 <button
+                   onClick={handleFavHeart}
+                   disabled={favLoading}
+                   className={`w-12 border rounded flex items-center justify-center transition-colors shrink-0 ${
+                     inCloset ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-black'
+                   }`}
+                 >
+                   <Heart className={`w-5 h-5 ${inCloset ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
                  </button>
                </div>
+
+               {cartSuccess && (
+                 <p className="text-green-600 text-sm font-medium mt-2 flex items-center gap-1">
+                   <CheckCircle className="w-4 h-4" /> Added to cart successfully!
+                 </p>
+               )}
             </div>
             
           </div>
         </div>
 
-        {/* Info & Reviews Section */}
         <div className="flex flex-col lg:flex-row gap-8 w-full border-t border-gray-200 pt-10">
           
-          {/* Left: Reviews */}
           <div id="reviews" className="flex-[2] pr-0 xl:pr-10">
              <div className="flex justify-between items-end mb-6">
                <h2 className="text-xl font-bold">Customer Reviews (1,649)</h2>
@@ -248,7 +363,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
                </div>
              </div>
              
-             {/* Sample Reviews */}
              <div className="space-y-6">
                 {[1, 2].map((review) => (
                   <div key={review} className="border-b border-gray-100 pb-6">
@@ -277,7 +391,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
              </div>
           </div>
 
-          {/* Right: Info Panels */}
           <div className="flex-1 space-y-6">
              <div className="border border-gray-200 rounded">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
@@ -337,7 +450,6 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
           </div>
         </div>
 
-        {/* Similar Products */}
         <div className="mt-16 w-full">
            <h3 className="text-xl font-bold mb-6">Customers Also Viewed</h3>
            {isLoadingRelated ? (
@@ -353,6 +465,8 @@ export default function ProductPage({ product, onBack, onProductClick, onTryOnCl
                     category={relatedProduct.category || "Related"} 
                     onClick={() => onProductClick(relatedProduct)} 
                     onTryOnClick={() => onTryOnClick?.()}
+                    user={user}
+                    onAddToCart={onCartUpdated}
                   />
                ))}
              </div>
