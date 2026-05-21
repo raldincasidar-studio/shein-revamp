@@ -10,7 +10,7 @@ import {
   sendPasswordResetEmail,
   User
 } from 'firebase/auth';
-import { subscribeToCartCount } from './services/cartService';
+import { subscribeToCartCount, addToCart } from './services/cartService';
 
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -193,8 +193,24 @@ export default function App() {
              <VirtualTryOnPage
                 product={selectedProduct}
                 onBack={() => setCurrentPage('product')}
-                onAddToCart={(p) => { 
-                   setCurrentPage('cart'); 
+                onAddToCart={async (p) => {
+                   if (user) {
+                     try {
+                       await addToCart(user.uid, {
+                         productId: p.id,
+                         productName: p.name,
+                         productImage: p.imageUrl,
+                         price: p.price,
+                         selectedSize: p.sizes?.[0] || 'One Size',
+                         selectedColor: p.colors?.[0] || 'Default',
+                         quantity: 1,
+                         category: p.category || 'General',
+                       });
+                     } catch (err) {
+                       console.error('Failed to add to cart from try-on', err);
+                     }
+                   }
+                   setCurrentPage('cart');
                    window.scrollTo(0, 0);
                 }}
              />
