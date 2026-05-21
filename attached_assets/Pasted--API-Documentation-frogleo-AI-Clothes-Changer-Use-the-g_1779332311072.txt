@@ -1,0 +1,69 @@
+# API Documentation: frogleo/AI-Clothes-Changer
+
+Use the `gradio_client` Python library or the `@gradio/client` JavaScript package to query the app via API.
+
+## Setup
+
+Install the client if you don't already have it installed:
+
+```bash
+npm i -D @gradio/client
+
+```
+
+---
+
+## Endpoint: `/infer`
+
+To use this function, copy the snippet below and replace placeholder values with your own data. For private Spaces, ensure you pass your Hugging Face token.
+
+```javascript
+import { client } from "@gradio/client";
+
+// Fetch example images to convert to blobs
+const response_0 = await fetch("This is the cleaned and formatted documentation for the **frogleo/AI-Clothes-Changer** API.
+
+# API Documentation:https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png");
+const personImage = await response_0.blob();
+
+const response_1 = await fetch("https://raw.githubusercontent.com/gradio-app/gradio/mainThis is the cleaned and formatted documentation for the **frogleo/AI-Clothes-Changer** API.
+
+# API Documentation: frogleo/AI-Clothes-Changer
+
+Use the [Gradio Python library](https://www.gradio.app/docs/python-client) or [@gradio/client Javascript package](https://www.gradio.app/docs/client/js) to query this application programmatically.
+
+---
+
+##/test/test_files/bus.png");
+const garmentImage = await response_1.blob();
+
+const app = await client("frogleo/AI-Clothes-Changer");
+const result = await app.predict("/infer", [
+    personImage,    // Person Image (Blob/File)
+    garmentImage,   // Garment Image (Blob/File)
+    3,              // Denoising Steps (Number)
+    3,              // Seed (Number)
+]);
+
+console.log(result.data);
+
+```
+
+---
+
+## Reference
+
+### Parameters
+
+| Index | Type | Requirement | Description |
+| --- | --- | --- | --- |
+| **[0]** | `Blob | File | Buffer` | **Required** | The input for the **"Person Image"** component. |
+| **[1]** | `Blob | File | Buffer` | **Required** | The input for the **"Garment Image"** component. |
+| **[2]** | `Number` | **Required** | The number of **"Denoising Steps"**. |
+| **[3]** | `Number` | **Required** | The **"Seed"** for generation consistency. |
+
+### Returns
+
+| Type | Description |
+| --- | --- |
+| **String** | The URL/path for the output in the **"Generated Image"** component. |

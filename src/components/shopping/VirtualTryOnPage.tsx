@@ -9,8 +9,8 @@ import {
   ShoppingCart,
   AlertCircle,
 } from "lucide-react";
+import { client } from "@gradio/client";
 import { Product } from "./ShoppingPage";
-import { getGeminiApiKey } from "../../services/settingsService";
 
 interface VirtualTryOnPageProps {
   product: Product;
@@ -18,39 +18,11 @@ interface VirtualTryOnPageProps {
   onAddToCart: (product: Product) => void;
 }
 
-async function fileToBase64(
-  file: File,
-): Promise<{ data: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const [header, data] = result.split(",");
-      const mimeType = header.match(/:(.*?);/)?.[1] || "image/jpeg";
-      resolve({ data, mimeType });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-async function urlToBase64(
-  url: string,
-): Promise<{ data: string; mimeType: string } | null> {
+async function urlToBlob(url: string): Promise<Blob | null> {
   try {
     const response = await fetch(url, { mode: "cors" });
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const [header, data] = result.split(",");
-        const mimeType = header.match(/:(.*?);/)?.[1] || "image/jpeg";
-        resolve({ data, mimeType });
-      };
-      reader.onerror = () => reject(null);
-      reader.readAsDataURL(blob);
-    });
+    if (!response.ok) return null;
+    return await response.blob();
   } catch {
     return null;
   }
@@ -59,79 +31,37 @@ async function urlToBase64(
 async function generateTryOnImage(
   personImageFile: File,
   productImageUrl: string,
-  productName: string,
-  apiKey: string,
 ): Promise<string> {
-  const GEMINI_MODEL = "gemini-2.5-flash-image";
-  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-
-  const personImage = await fileToBase64(personImageFile);
-  const productImage = await urlToBase64(productImageUrl);
-
-  const parts: object[] = [
-    {
-      text: `The first image is a photo of a person. The second image is a clothing item called "${productName}". Please replace the person's current outfit with the clothing item from the second image. Keep the person's face, body, pose, and background exactly the same. Only change the clothing to match the outfit in the second image. Return a photorealistic result.`,
-    },
-    {
-      inline_data: {
-        mime_type: personImage.mimeType,
-        data: personImage.data,
-      },
-    },
-  ];
-
-  if (productImage) {
-    parts.push({
-      inline_data: {
-        mime_type: productImage.mimeType,
-        data: productImage.data,
-      },
-    });
-  } else {
-    parts.push({
-      text: `The outfit to apply is: ${productName}. Apply this outfit style to the person.`,
-    });
+  const garmentBlob = await urlToBlob(productImageUrl);
+  if (!garmentBlob) {
+    throw new Error(
+      "Could not load the product image. Please try again.",
+    );
   }
 
-  const body = {
-    contents: [{ parts }],
-    generationConfig: {
-      responseModalities: ["TEXT", "IMAGE"],
-    },
-  };
+  const app = await client("frogleo/AI-Clothes-Changer");
+  const result = await app.predict("/infer", [
+    personImageFile,
+    garmentBlob,
+    20,
+    42,
+  ]);
 
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify(body),
-  });
+  const data = (result as any).data;
+  const output = Array.isArray(data) ? data[0] : data;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    let message = `API error (${response.status})`;
-    try {
-      const err = JSON.parse(errorText);
-      message = err?.error?.message || message;
-    } catch {}
-    throw new Error(message);
+  if (!output) {
+    throw new Error(
+      "No image was returned by the AI. Try a clearer full-body photo.",
+    );
   }
 
-  const data = await response.json();
-  const candidates = data?.candidates || [];
-
-  for (const candidate of candidates) {
-    for (const part of candidate?.content?.parts || []) {
-      if (part.inlineData?.data) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-  }
+  if (typeof output === "string") return output;
+  if (output?.url) return output.url;
+  if (output?.path) return output.path;
 
   throw new Error(
-    "No image was returned by the AI. Try a clearer full-body photo.",
+    "Unexpected response format. Please try again.",
   );
 }
 
@@ -164,19 +94,7 @@ export default function VirtualTryOnPage({
     setGeneratedImage(null);
 
     try {
-      const apiKey = await getGeminiApiKey();
-      if (!apiKey) {
-        throw new Error(
-          "No Gemini API key configured. Please set it in Admin → Settings.",
-        );
-      }
-
-      const result = await generateTryOnImage(
-        file,
-        product.imageUrl,
-        product.name,
-        apiKey,
-      );
+      const result = await generateTryOnImage(file, product.imageUrl);
       setGeneratedImage(result);
     } catch (err: any) {
       setError(err?.message || "Something went wrong. Please try again.");
